@@ -45,7 +45,7 @@ use constant {
 
 our @EXPORT_OK = qw(FLAG_FIN FLAG_COMPRESS HEADER_LENGTH ZLIB_DICTIONARY);
 our %EXPORT_TAGS = (
-	:all	=> \@EXPORT_OK,
+	'all'	=> \@EXPORT_OK,
 );
 
 1;

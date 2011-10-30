@@ -17,31 +17,7 @@ See the L<Protocol::SPDY::Frame::Control> and L<Protocol::SPDY::Frame::Data> sub
 
 =cut
 
-use constant {
-	# Flag indicating whether this is the final packet in the stream
-	FLAG_FIN	=> 0x01,
-	# Whether compression is enabled
-	FLAG_COMPRESS	=> 0x02,
-	# Number of bytes in the header (common between control and data frames)
-	HEADER_LENGTH	=> 8,
-	# The spec requires seeding our zlib instance with a specific dictionary to get
-	# better performance.
-	ZLIB_DICTIONARY	=> join('', qw(
-		optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-
-		languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi
-		f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser
-		-agent10010120020120220320420520630030130230330430530630740040140240340440
-		5406407408409410411412413414415416417500501502503504505accept-rangesageeta
-		glocationproxy-authenticatepublicretry-afterservervarywarningwww-authentic
-		ateallowcontent-basecontent-encodingcache-controlconnectiondatetrailertran
-		sfer-encodingupgradeviawarningcontent-languagecontent-lengthcontent-locati
-		oncontent-md5content-rangecontent-typeetagexpireslast-modifiedset-cookieMo
-		ndayTuesdayWednesdayThursdayFridaySaturdaySundayJanFebMarAprMayJunJulAugSe
-		pOctNovDecchunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplic
-		ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1
-		.1statusversionurl
-	)),
-};
+use Protocol::SPDY::Constants ':all';
 
 =head1 METHODS
 

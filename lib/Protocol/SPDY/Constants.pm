@@ -41,9 +41,30 @@ use constant {
 		ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1
 		.1statusversionurl
 	)),
+	# Which version we support
+	MAX_SUPPORTED_VERSION => 2,
+# SETTINGS packet flags
+	# Request to persist settings
+	FLAG_SETTINGS_PERSIST_VALUE => 0x01,
+	# Inform other side of previously-persisted settings
+	FLAG_SETTINGS_PERSISTED => 0x02,
+	# Expected upload bandwidth
+	SETTINGS_UPLOAD_BANDWIDTH => 1,
+	# Expected download bandwidth
+	SETTINGS_DOWNLOAD_BANDWIDTH => 2,
+	# How long we expect packets to take to go from here to there and back again
+	SETTINGS_ROUND_TRIP_TIME => 3,
+	# How many streams we want
+	SETTINGS_MAX_CONCURRENT_STREAMS => 4,
+	# Something to do with CWND, whatever that happens to be
+	SETTINGS_CURRENT_CWND => 5,
+	# Retransmission rate on downloads (percentage)
+	SETTINGS_DOWNLOAD_RETRANS_RATE => 6,
+	# Start with windows of this size (in bytes)
+	SETTINGS_INITIAL_WINDOW_SIZE => 7,
 };
 
-our @EXPORT_OK = qw(FLAG_FIN FLAG_COMPRESS HEADER_LENGTH ZLIB_DICTIONARY);
+our @EXPORT_OK = qw(FLAG_FIN FLAG_COMPRESS HEADER_LENGTH ZLIB_DICTIONARY MAX_SUPPORTED_VERSION);
 our %EXPORT_TAGS = (
 	'all'	=> \@EXPORT_OK,
 );

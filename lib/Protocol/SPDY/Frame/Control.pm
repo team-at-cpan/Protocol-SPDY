@@ -2,12 +2,11 @@ package Protocol::SPDY::Frame::Control;
 use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Frame);
+use Protocol::SPDY::Constants ':all';
 
 =head1 NAME
 
 Protocol::SPDY::Frame::Control - control frame subclass for the SPDY protocol
-
-=head1 SYNOPSIS
 
 =head1 DESCRIPTION
 
@@ -20,48 +19,87 @@ Subclass of L<Protocol::SPDY::Frame>. See also L<Protocol::SPDY::Frame::Data>.
 
 =cut
 
-sub control_bit { 1 }
+sub new {
+	my ($class, %args) = @_;
+	my $self = $class->SUPER::new(%args);
+	return $self;
+}
+
+sub is_control { 1 }
+sub is_data { 0 }
 
 =head2 update_frametype_bit
 
 =cut
 
-sub update_frametype_bit { shift->update_controltype_id }
+sub update_frametype_bit { shift->update_control_type_id }
 
-=head2 version
+=head2 control_version
 
 =cut
 
-sub version {
+sub control_version {
 	my $self = shift;
 	if(@_) {
 		my $id = shift;
-		$self->{version} = $id;
-		$self->update_version;
+		$self->{control_version} = $id;
+		$self->update_control_version;
 		return $self;
 	}
-	unless(exists($self->{version})) {
-		$self->{version} = unpack('n1', substr $self->packet, 0, 2) >> 1;
+	unless(exists($self->{control_version})) {
+		$self->{control_version} = unpack('n1', substr $self->packet, 0, 2) >> 1;
 	}
-	return $self->{version};
+	return $self->{control_version};
 }
 
-=head2 controltype
+=head2 control_type
 
 =cut
 
-sub controltype {
+sub control_type {
 	my $self = shift;
 	if(@_) {
 		my $id = shift;
-		$self->{controltype} = $id;
-		$self->update_controltype;
+		$self->{control_type} = $id;
+		$self->update_control_type;
 		return $self;
 	}
-	unless(exists($self->{controltype})) {
-		$self->{controltype} = unpack('n1', substr $self->packet, 2, 2) >> 1;
+	unless(exists($self->{control_type})) {
+		$self->{control_type} = unpack('n1', substr $self->packet, 2, 2) >> 1;
 	}
-	return $self->{controltype};
+	return $self->{control_type};
+}
+
+=head2 control_flags
+
+=cut
+
+sub control_flags {
+	my $self = shift;
+	if(@_) {
+		my $flags = shift;
+		$self->{control_flags} = $flags;
+		$self->update_control_flags;
+		return $self;
+	}
+	unless(exists($self->{control_flags})) {
+		$self->{control_flags} = unpack 'C1', substr $self->packet, 4, 1;
+	}
+	return $self->{control_flags};
+}
+
+=head2 flag_fin
+
+=cut
+
+sub flag_fin {
+	my $self = shift;
+	if(@_) {
+		my $fin = shift;
+		$self->flags($fin ? $self->{flags} | FLAG_FIN : $self->{flags} & ~FLAG_FIN);
+		return $self;
+	}
+	$self->flags & FLAG_FIN
 }
 
 =head2 update_stream_id
@@ -74,4 +112,54 @@ sub update_stream_id {
 	return $self;
 }
 
+=head2 update_control_flags
+
+Updates the control_flags
+
+=cut
+
+sub update_control_flags {
+	my $self = shift;
+	substr $self->{packet}, 4, 1, pack 'C1', ($self->control_flags & 0xFF);
+	return $self;
+}
+
+sub as_packet {
+	my $self = shift;
+	my $pkt = "\0" x 8;
+	vec($pkt, 0, 16) = ($self->is_control ? 0x8000 : 0x0000) | ($self->control_version & 0x7FFF);
+	vec($pkt, 1, 16) = $self->control_type;
+	vec($pkt, 2, 16) = (($self->control_flags & 0xFF) << 24) | ($self->length & 0x00FFFFFF);
+	return $pkt;
+}
+
 1;
+
+__END__
+
+=head1 COMPONENTS
+
+Further documentation can be found in the following modules:
+
+=over 4
+
+=item * L<Protocol::SPDY> - top-level protocol object
+
+=item * L<Protocol::SPDY::Frame> - generic frame class
+
+=item * L<Protocol::SPDY::Frame::Control> - specific subclass for control frames
+
+=item * L<Protocol::SPDY::Frame::Data> - specific subclass for data frames
+
+=back
+
+=head1 AUTHOR
+
+Tom Molesworth <cpan@entitymodel.com>
+
+=head1 LICENSE
+
+Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
+
+
+

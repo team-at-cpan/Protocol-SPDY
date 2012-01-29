@@ -1,7 +1,7 @@
 package Protocol::SPDY;
 # ABSTRACT: Support for the SPDY protocol
 use strict;
-use warnings FATAL => 'all';
+use warnings;
 
 our $VERSION = '0.001';
 
@@ -9,13 +9,12 @@ our $VERSION = '0.001';
 
 Protocol::SPDY - abstract support for the SPDY protocol
 
-=head1 SYNOPSIS
-
 =head1 DESCRIPTION
 
-These modules aren't much use on their own, since they only deal with the abstract
-protocol. If you want to add SPDY client or server support to your code, you'll need
-a transport as well - try one of these:
+Provides an implementation for the SPDY protocol at an abstract (in-memory buffer) level.
+This means that these modules aren't much use on their own, since they only deal with the
+abstract protocol. If you want to add SPDY client or server support to your code, you'll
+need a transport as well - try one of these yet-to-be-released modules:
 
 =over 4
 
@@ -27,8 +26,10 @@ see L<https://rt.cpan.org/Ticket/Display.html?id=74387> for progress on this.
 
 =back
 
-Eventually L<POE> or L<AnyEvent> implementations should arrive when someone more
-familiar with those frameworks takes an interest.
+Eventually L<POE> or L<AnyEvent> implementations may arrive if someone more
+familiar with those frameworks takes an interest. On the server side, it should
+be possible to incorporate this as a plugin for Plack/PSGI so that any PSGI-compatible
+web application can support SPDY requests.
 
 For a simple blocking client and server implementation, see the examples/ directory.
 
@@ -52,8 +53,8 @@ For example:
 
 This applies both to HTTP and HTTPS.
 
-If the browser is already connected to the server using TLS, the TLS/NPN mechanism can be used
-to indicate that SPDY is available. Currently this requires openssl-1.1 or later,
+If the browser is already connected to the server using TLS, the TLS/NPN mechanism can
+be used to indicate that SPDY is available. Currently this requires openssl-1.1 or later,
 although the NPN extension should be simple enough to backport if needed (see
 L<http://www.ietf.org/id/draft-agl-tls-nextprotoneg-00.txt> for details). Since the
 port is already connected, only the <protocol> part is required ('spdy/2' or 'spdy/3')
@@ -66,11 +67,13 @@ This information could also be provided via the Alternate-Protocol header:
 =cut
 
 # Pull in all the required pieces
+use Protocol::SPDY::Constants ':all';;
+
 use Protocol::SPDY::Frame;
 use Protocol::SPDY::Frame::Control;
 use Protocol::SPDY::Frame::Data;
 
-use Protocol::SPDY::Constants ':all';;
+use Protocol::SPDY::Stream;
 
 =head1 METHODS
 
@@ -149,12 +152,13 @@ sub create_stream {
 
 Generate the next stream ID for this connection.
 
-Returns the next available stream ID,or 0 if we're out of available streams
+Returns the next available stream ID, or 0 if we're out of available streams
 
 =cut
 
 sub next_stream_id {
 	my $self = shift;
+	# TODO Why 2?
 	$self->{last_stream_id} += 2;
 	return $self->{last_stream_id} if $self->{last_stream_id} <= 0x7FFFFFFF;
 	return 0;
@@ -372,12 +376,26 @@ sub parse_response {
 
 	my $hdr = $self->extract_headers_from_packet($pkt);
 	unless($hdr->{status}) {
-		$self->send_frame(RST_STREAM => { error => 'PROTOCOL ERROR' });
-		return;
+		$self->send_frame(RST_STREAM => { error => PROTOCOL_ERROR });
+		return $self;
 	}
 }
 
-# other than that, we do nothing
+sub send_frame {
+	my $self = shift;
+	my ($type, $data) = @_;
+	$self->write($self->build_packet($type, $data))
+	return $self;
+}
+
+sub build_packet {
+	my $self = shift;
+	my ($type, $data) = @_;
+	return Protocol::SPDY::Frame::Control->new(
+		type	=> RST_STREAM,
+	);
+}
+
 1;
 
 __END__
@@ -393,6 +411,9 @@ Further documentation can be found in the following modules:
 =item * L<Protocol::SPDY::Frame::Control> - specific subclass for control frames
 
 =item * L<Protocol::SPDY::Frame::Data> - specific subclass for data frames
+
+=item * L<Protocol::SPDY::Stream> - handling for 'streams', which are somewhat
+analogous to individual HTTP requests
 
 =back
 

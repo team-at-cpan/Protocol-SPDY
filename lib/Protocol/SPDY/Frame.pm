@@ -132,6 +132,8 @@ Returns the type of this frame, such as SYN_STREAM, RST_STREAM etc.
 
 sub type { shift->{type} }
 
+sub as_packet { '' }
+
 1;
 
 __END__

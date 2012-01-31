@@ -384,7 +384,7 @@ sub parse_response {
 sub send_frame {
 	my $self = shift;
 	my ($type, $data) = @_;
-	$self->write($self->build_packet($type, $data))
+	$self->write($self->build_packet($type, $data));
 	return $self;
 }
 

@@ -37,4 +37,14 @@ sub update_stream_id {
 	return $self;
 }
 
+sub as_packet {
+	my $self = shift;
+	my $base = $self->SUPER::as_packet(@_);
+	my $pkt = "\0" x 8;
+	my $pkt = pack 'N1N1',
+			($self->is_control ? 0x8000 : 0x0000) | ($self->stream_id & 0x7FFFFFFF),
+			(($self->data_flags & 0xFF) << 24) | ($self->length & 0x00FFFFFF);
+	return $base . $pkt;
+}
+
 1;

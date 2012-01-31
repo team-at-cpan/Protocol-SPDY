@@ -126,11 +126,26 @@ sub update_control_flags {
 
 sub as_packet {
 	my $self = shift;
+	my $base = $self->SUPER::as_packet(@_);
 	my $pkt = "\0" x 8;
 	vec($pkt, 0, 16) = ($self->is_control ? 0x8000 : 0x0000) | ($self->control_version & 0x7FFF);
 	vec($pkt, 1, 16) = $self->control_type;
 	vec($pkt, 2, 16) = (($self->control_flags & 0xFF) << 24) | ($self->length & 0x00FFFFFF);
-	return $pkt;
+	return $base . $pkt;
+}
+
+=head2 pairs_to_nv_header
+
+Returns a name-value pair header block.
+
+=cut
+
+sub pairs_to_nv_header {
+	my $class = shift;
+	my @hdr = @_;
+	my $data = pack 'n1', @hdr / 2;
+	$data .= pack '(n/A*)*', @hdr;
+	return $data;
 }
 
 1;

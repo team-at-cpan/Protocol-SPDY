@@ -16,11 +16,10 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 use constant {
-	FLAG_FIN => 0x01,
 	FLAG_UNIDIRECTIONAL => 0x02,
 };
 
-our @EXPORT_OK = qw(FLAG_FIN FLAG_UNIDIRECTIONAL);
+our @EXPORT_OK = qw(FLAG_UNIDIRECTIONAL);
 our %EXPORT_TAGS = (
 	all => \@EXPORT_OK
 );

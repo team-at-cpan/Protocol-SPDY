@@ -15,14 +15,6 @@ Protocol::SPDY::Frame::Control::SynReply - stream creation request packet for SP
 =cut
 
 use Protocol::SPDY::Constants ':all';
-use constant {
-	FLAG_FIN => 0x01,
-};
-
-our @EXPORT_OK = qw(FLAG_FIN);
-our %EXPORT_TAGS = (
-	all => \@EXPORT_OK
-);
 
 =head2 new
 

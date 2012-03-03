@@ -22,20 +22,6 @@ use Protocol::SPDY::Constants ':all';
 
 =cut
 
-#=head2 flag_compress
-#
-#=cut
-#
-#sub flag_compress {
-#	my $self = shift;
-#	if(@_) {
-#		my $comp = shift;
-#		$self->flags($comp ? ($self->flags | FLAG_COMPRESS) : ($self->flags & ~FLAG_COMPRESS));
-#		return $self;
-#	}
-#	$self->flags & FLAG_COMPRESS
-#}
-
 =head2 is_control
 
 Returns true if this is a control frame. Recommended over

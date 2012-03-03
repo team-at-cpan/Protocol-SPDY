@@ -96,10 +96,11 @@ sub flag_fin {
 	my $self = shift;
 	if(@_) {
 		my $fin = shift;
-		$self->flags($fin ? $self->{flags} | FLAG_FIN : $self->{flags} & ~FLAG_FIN);
+		my $flags = $self->control_flags;
+		$self->control_flags($fin ? $flags | FLAG_FIN : $flags & ~FLAG_FIN);
 		return $self;
 	}
-	$self->flags & FLAG_FIN
+	$self->control_flags & FLAG_FIN
 }
 
 =head2 update_stream_id
@@ -133,6 +134,22 @@ sub as_packet {
 	vec($pkt, 2, 16) = (($self->control_flags & 0xFF) << 24) | ($self->length & 0x00FFFFFF);
 	return $base . $pkt;
 }
+
+=head2 flag_compress
+
+=cut
+
+sub flag_compress {
+	my $self = shift;
+	if(@_) {
+		my $comp = shift;
+		my $flags = $self->control_flags;
+		$self->control_flags($comp ? ($flags | FLAG_COMPRESS) : ($flags & ~FLAG_COMPRESS));
+		return $self;
+	}
+	$self->control_flags & FLAG_COMPRESS
+}
+
 
 =head2 pairs_to_nv_header
 

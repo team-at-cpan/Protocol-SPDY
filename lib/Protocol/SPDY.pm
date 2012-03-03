@@ -329,7 +329,7 @@ sub packet_request {
 	# Apply method directly
 	$hdr{method} = delete $args{method};
 
-	# Unpack the URI 
+	# Unpack the URI
 	$hdr{scheme} = $uri->scheme;
 	$hdr{url} = $uri->path_query;
 	$hdr{version} = $args{version} || 'HTTP/1.1';
@@ -356,7 +356,7 @@ sub parse_request {
 	# Apply method directly
 	$hdr{method} = delete $args{method};
 
-	# Unpack the URI 
+	# Unpack the URI
 	$hdr{scheme} = $uri->scheme;
 	$hdr{url} = $uri->path_query;
 	$hdr{version} = $args{version} || 'HTTP/1.1';

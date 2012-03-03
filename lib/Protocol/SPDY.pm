@@ -11,6 +11,12 @@ Protocol::SPDY - abstract support for the SPDY protocol
 
 =head1 DESCRIPTION
 
+NOTE: This is a rewrite of the original Protocol::SPDY implementation,
+and as such is still very much in an early stage of development. Primary
+focus is on providing server-side SPDY implementation for use with
+browsers such as Chrome and Firefox (at the time of writing, the
+development track for Firefox11 has initial SPDY support).
+
 Provides an implementation for the SPDY protocol at an abstract (in-memory buffer) level.
 This means that these modules aren't much use on their own, since they only deal with the
 abstract protocol. If you want to add SPDY client or server support to your code, you'll

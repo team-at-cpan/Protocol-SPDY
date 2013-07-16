@@ -1,0 +1,156 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use 5.010;
+package Web::Async::Request;
+use Future;
+use curry;
+use overload
+	'""' => 'to_string',
+	bool => sub () { 1 },
+	fallback => 1;
+
+use constant {
+	FUTURE       => 0,
+	PRIVATE      => 1,
+	METHOD       => 2,
+	HOST         => 3,
+	HTTP_VERSION => 4,
+	PATH         => 5,
+};
+
+sub new {
+	my $class = shift;
+	my %args = @_;
+	my $self = bless [ ], $class;
+	$args{http_version} //= 'HTTP/1.1';
+	@{$self}[METHOD, HOST, HTTP_VERSION, PATH, FUTURE] = (@args{qw(method host http_version path)}, Future->new);
+	# $self->future->on_done(sub { say "Finished request" });
+	$self;
+}
+sub method { $_[0]->[METHOD] }
+sub host { $_[0]->[HOST] }
+sub http_version { $_[0]->[HTTP_VERSION] }
+sub path { $_[0]->[PATH] }
+
+sub future { $_[0]->[FUTURE] }
+
+sub create_response {
+	my $self = shift;
+	my $resp = Web::Async::Response->new(
+		request => $self,
+	);
+	$resp->future
+	 ->on_done($self->future->curry::done)
+	 ->on_fail($self->future->curry::fail)
+	 ->on_cancel($self->future->curry::cancel);
+	$resp;
+}
+
+sub to_string {
+	my $self = shift;
+	'Request[' . join(' ', $self->method, $self->host . $self->path, $self->http_version) . ']';
+}
+
+package Web::Async::Response;
+use Future;
+use curry;
+use overload
+	'""' => 'to_string',
+	bool => sub () { 1 },
+	fallback => 1;
+
+use constant {
+	PRIVATE  => 0,
+	FUTURE   => 1,
+	REQUEST  => 2,
+	CODE     => 3,
+	STATUS   => 4,
+	BODY     => 5,
+	HEADERS  => 6,
+};
+
+sub new {
+	my $class = shift;
+	my %args = @_;
+	my $self = bless [ ], $class;
+	@{$self}[FUTURE, REQUEST] = (Future->new, @args{qw(request)});
+	$self;
+}
+
+sub future { $_[0]->[FUTURE] }
+sub request { $_[0]->[REQUEST] }
+
+sub code { return $_[0]->[CODE] unless @_ > 1; $_[0]->[CODE] = $_[1]; $_[0] }
+sub status { return $_[0]->[STATUS] unless @_ > 1; $_[0]->[STATUS] = $_[1]; $_[0]  }
+sub body {
+	return $_[0]->[BODY] unless @_ > 1;
+	$_[0]->[BODY] = $_[1];
+	$_[0]->header('Content-Length' => length $_[1]);
+	$_[0]
+}
+
+sub header_list {
+	my $self = shift;
+	map $_->[0], @{$self->[HEADERS]}
+}
+sub header {
+	my $self = shift;
+	my $hdr = shift;
+	if(my ($found) = grep $self->[HEADERS][$_][0] eq $hdr, 0..$#{$self->[HEADERS]}) {
+		return @{$self->[HEADERS][$found]}[1..$#{$self->[HEADERS][$found]}] unless @_;
+		$self->[HEADERS][$found] = [ $hdr => @_ ];
+	} else {
+		return unless @_;
+		push @{$self->[HEADERS]}, [ $hdr => @_ ];
+	}
+	$self
+}
+
+sub finish {
+	my $self = shift;
+	$self->future->done($self);
+}
+
+sub to_string {
+	my $self = shift;
+	'Response[' . join(' ', $self->code, $self->status, $self->request) . ']';
+}
+
+sub as_http {
+	my $self = shift;
+	my $delimiter = shift // "\x0D\x0A";
+	my @out;
+	push @out, join ' ', $self->request->http_version, $self->code, $self->status;
+	push @out, join ': ', $_ => join ',', $self->header($_) for $self->header_list;
+	push @out, '';
+	push @out, $_ for grep defined, $self->body;
+	join $delimiter, @out;
+}
+
+package Local::Handler;
+sub new { my $class = shift; bless { @_ }, $class }
+
+sub request {
+	my $self = shift;
+	my $req = shift;
+#	say "Incoming: $req";
+	my $resp = $req->create_response;
+	$resp->header('Content-Type' => 'text/plain')
+	->body('Here is a response')->code(200)->status('OK')->finish;
+#	say "Outgoing: $resp";
+#	say "As HTTP:\n" . $resp->as_http("\n");
+}
+
+package main;
+use Benchmark qw(:hireswallclock timethis);
+
+my $handler = Local::Handler->new;
+$handler->request(
+	Web::Async::Request->new(
+		method => 'GET',
+		host => 'localhost',
+		port => '9929',
+		path => '/',
+	)
+) for 1..1000;

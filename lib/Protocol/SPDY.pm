@@ -2,8 +2,10 @@ package Protocol::SPDY;
 # ABSTRACT: Support for the SPDY protocol
 use strict;
 use warnings;
+use 5.010;
+use parent qw(Mixin::Event::Dispatch);
 
-our $VERSION = '0.002';
+our $VERSION = '0.100';
 
 =head1 NAME
 
@@ -11,16 +13,10 @@ Protocol::SPDY - abstract support for the SPDY protocol
 
 =head1 DESCRIPTION
 
-NOTE: This is a rewrite of the original Protocol::SPDY implementation,
-and as such is still very much in an early stage of development. Primary
-focus is on providing server-side SPDY implementation for use with
-browsers such as Chrome and Firefox (at the time of writing, the
-development track for Firefox11 has initial SPDY support).
-
 Provides an implementation for the SPDY protocol at an abstract (in-memory buffer) level.
 This means that these modules aren't much use on their own, since they only deal with the
 abstract protocol. If you want to add SPDY client or server support to your code, you'll
-need a transport as well - try one of these yet-to-be-released modules:
+need a transport as well:
 
 =over 4
 
@@ -37,7 +33,12 @@ familiar with those frameworks takes an interest. On the server side, it should
 be possible to incorporate this as a plugin for Plack/PSGI so that any PSGI-compatible
 web application can support SPDY requests.
 
-For a simple blocking client and server implementation, see the examples/ directory.
+For a simple blocking client and server implementation, see the C<examples/> directory.
+
+NOTE: Primary focus is on providing server-side SPDY implementation for use with
+browsers such as Chrome and Firefox (at the time of writing, the development track
+for Firefox11 had initial SPDY support, and IE11 is also rumoured to provide SPDY/3
+support).
 
 =head1 IMPLEMENTATION CONSIDERATIONS
 
@@ -70,20 +71,48 @@ This information could also be provided via the Alternate-Protocol header:
 
  Alternate-Protocol: 2443:spdy/2,443:npn-spdy/2,443:npn-spdy/3
 
+=head2 PACKET SEQUENCE
+
+Typically both sides would send a SETTINGS packet first.
+
+This would be followed by SYN_STREAM from the client corresponding to the
+initial HTTP request.
+
 =cut
 
 # Pull in all the required pieces
-use Protocol::SPDY::Constants ':all';;
+use Protocol::SPDY::Constants ':all';
 
+use Protocol::SPDY::Compress;
 use Protocol::SPDY::Frame;
 use Protocol::SPDY::Frame::Control;
 use Protocol::SPDY::Frame::Data;
+
+use Protocol::SPDY::Frame::Control::SETTINGS;
+use Protocol::SPDY::Frame::Control::SYN_STREAM;
+use Protocol::SPDY::Frame::Control::SYN_REPLY;
+use Protocol::SPDY::Frame::Control::RST_STREAM;
+use Protocol::SPDY::Frame::Control::PING;
+use Protocol::SPDY::Frame::Control::GOAWAY;
+use Protocol::SPDY::Frame::Control::HEADERS;
+use Protocol::SPDY::Frame::Control::WINDOW_UPDATE;
+use Protocol::SPDY::Frame::Control::CREDENTIAL;
 
 use Protocol::SPDY::Stream;
 
 =head1 METHODS
 
 =cut
+
+sub new {
+	my $class = shift;
+	bless {
+		zlib => Protocol::SPDY::Compress->new,
+		@_
+	}, $class
+}
+
+sub zlib { shift->{zlib} }
 
 =head2 request_close
 
@@ -108,7 +137,7 @@ sub check_version {
 	my ($self, $frame) = @_;
 	if($frame->version > MAX_SUPPORTED_VERSION) {
 		# Send a reset if this was a SYN_STREAM
-		$self->send_frame(RST_STREAM => { status => UNSUPPORTED_VERSION }) if $frame->type == SYN_STREAM;
+		$self->send_frame(RST_STREAM => { status => UNSUPPORTED_VERSION }) if $frame->type == FRAME_TYPE_BY_ID->{SYN_STREAM};
 		# then bail out (we do this for any frame type
 		return 0;
 	}
@@ -164,7 +193,7 @@ Returns the next available stream ID, or 0 if we're out of available streams
 
 sub next_stream_id {
 	my $self = shift;
-	# TODO Why 2?
+	# 2.3.2 - server streams are even, client streams are odd
 	$self->{last_stream_id} += 2;
 	return $self->{last_stream_id} if $self->{last_stream_id} <= 0x7FFFFFFF;
 	return 0;
@@ -351,7 +380,7 @@ sub parse_request {
 
 	# These would be ignored anyway, drop 'em if we have 'em to save
 	# some bandwidth
-	delete $hdr{qw(connection keep-alive host)};
+	delete @hdr{qw(connection keep-alive host transfer-encoding)};
 
 	# Apply method directly
 	$hdr{method} = delete $args{method};
@@ -359,7 +388,7 @@ sub parse_request {
 	# Unpack the URI
 	$hdr{scheme} = $uri->scheme;
 	$hdr{url} = $uri->path_query;
-	$hdr{version} = $args{version} || 'HTTP/1.1';
+	$hdr{version} = $args{version} // 'HTTP/1.1';
 }
 
 =head2 packet_response
@@ -374,7 +403,7 @@ sub packet_response {
 	my %hdr = map { lc($_) => $args{header}{$_} } keys %{$args{header}};
 	delete $hdr{qw(connection keep-alive)};
 	$hdr{status} = $args{status};
-	$hdr{version} = $args{version} || 'HTTP/1.1';
+	$hdr{version} = $args{version} // 'HTTP/1.1';
 }
 
 sub parse_response {
@@ -394,11 +423,58 @@ sub send_frame {
 	return $self;
 }
 
+sub queue_frame {
+	my $self = shift;
+	my $frame = shift;
+	$self->write($frame->as_packet($self->zlib));
+}
+
 sub build_packet {
 	my $self = shift;
 	my ($type, $data) = @_;
 	return Protocol::SPDY::Frame::Control->new(
-		type	=> RST_STREAM,
+		# type	=> RST_STREAM,
+	);
+}
+
+sub extract_frame {
+	my $self = shift;
+	Protocol::SPDY::Frame->extract_frame(@_, zlib => $self->zlib);
+}
+
+sub handle_frame {
+	my $self = shift;
+	my $frame = shift;
+	$frame->process($self);
+}
+
+sub apply_settings { say "Apply settings" }
+
+sub add_frame {
+	my $self = shift;
+	my $frame = shift;
+	say "Add new frame";
+	my $reply = 'hello!';
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Control::SYN_REPLY->new(
+			flags => 0,
+			stream_id => $frame->stream_id,
+			version => 3,
+			nv => [
+				':status' => '200 OK',
+				':version' => 'HTTP/1.1',
+				'server' => 'ProtocolSPDY/0.002',
+				'content-type' => 'text/plain; charset=utf-8',
+				'content-length' => length($reply),
+			],
+		)
+	);
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Data->new(
+			flags => FLAG_FIN,
+			stream_id => $frame->stream_id,
+			payload => $reply,
+		)
 	);
 }
 
@@ -434,5 +510,5 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
 

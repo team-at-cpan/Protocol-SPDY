@@ -9,11 +9,11 @@ use Try::Tiny;
 
 our @EXPORT_OK = qw(control_frame_ok);
 our %EXPORT_TAGS = (
-	'all' => \@EXPORT_OK
+	all => \@EXPORT_OK
 );
 
 my %frame_test = (
-	SYN_STREAM() => sub {
+	SYN_STREAM => sub {
 		my $frame = shift;
 		my $spec = shift || {};
 		subtest "SYN_STREAM" => sub {
@@ -64,7 +64,7 @@ sub control_frame_ok($$$) {
 			ok(!$frame->is_data, 'is_data returns false');
 			is(join(' ', map sprintf('%02x', ord), split //, $frame->packet), join(' ', map sprintf('%02x', ord), split //, $frame->as_packet), 'cached packet matches generated');
 			cmp_ok($frame->length, '>', 0, 'length is nonzero');
-			ok(my $type = $frame->type, 'have a frame type');
+			ok(my $type = $frame->type_string, 'have a frame type');
 			note 'type is ' . $type;
 			try {
 				$frame_test{$type}->($frame, $spec)

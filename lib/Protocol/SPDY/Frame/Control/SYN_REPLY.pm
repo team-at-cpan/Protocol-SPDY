@@ -1,12 +1,12 @@
-package Protocol::SPDY::Frame::Control::SynReply;
+package Protocol::SPDY::Frame::Control::SYN_REPLY;
 use strict;
 use warnings;
+use 5.010;
 use parent qw(Protocol::SPDY::Frame::Control);
-use Exporter qw(import);
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynReply - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
 
 =head1 SYNOPSIS
 
@@ -15,6 +15,50 @@ Protocol::SPDY::Frame::Control::SynReply - stream creation request packet for SP
 =cut
 
 use Protocol::SPDY::Constants ':all';
+
+sub header {
+	my $self = shift;
+	my $hdr = $self->{headers}{+shift} or return undef;
+	$hdr->[0]
+}
+
+sub header_multi {
+	my $self = shift;
+	@{$self->{headers}{+shift}}
+}
+
+sub from_data {
+	my $class = shift;
+	my %args = @_;
+	my ($stream_id) = unpack "N1", substr $args{data}, 0, 4, '';
+	$stream_id &= ~0x80000000;
+	say "Stream $stream_id";
+	my $dict = ZLIB_DICTIONARY;
+	my $data = $args{data};
+	my $zlib = delete $args{zlib};
+	my $out = $zlib->decompress($args{data});
+#	printf "%v02x\n", $out;
+	my ($count) = unpack 'N1', substr $out, 0, 4, '';
+	my %header;
+	for my $idx (1..$count) {
+		my ($k, $v) = unpack 'N/A*N/A*', $out;
+		my @v = split /\0/, $v;
+#		say "$idx - $k: " . join ',', @v;
+		$header{$k} = \@v;
+		substr $out, 0, 8 + length($k) + length($v), '';
+	}
+	$class->new(
+		%args,
+		stream_id => $stream_id,
+		headers => \%header,
+	);
+}
+
+sub process {
+	my $self = shift;
+	my $spdy = shift;
+	$spdy->add_frame($self);
+}
 
 =head2 new
 
@@ -50,12 +94,12 @@ sub new {
 		$flags &= ~FLAG_FIN if $fin;
 	}
 
-	$args{type} = SYN_REPLY;
+	$args{type} = FRAME_TYPE_BY_NAME->{'SYN_REPLY'};
 	my $self = $class->SUPER::new(%args);
 	$self->{flags} = $flags;
 	$self->{stream_id} = $stream_id;
 	$self->{name_value} = $nv;
-	$self->update_packet;
+#	$self->update_packet;
 	return $self;
 }
 
@@ -76,15 +120,12 @@ Returns the packet as a byte string.
 
 sub as_packet {
 	my $self = shift;
-	my $pkt = $self->SUPER::as_packet(@_);
-	$pkt .= pack 'N1N1n1',
-			1 << 31 | 2 << 16 | 2 << 16,
-			2,
-			2,
-			$self->stream_id & 0x7FFFFFFF,
-			($self->priority & 0x03) << 14;
-	$pkt .= $self->nv_header_block;
-	return $pkt;
+	my $zlib = shift;
+	my $payload = pack 'N1', $self->stream_id & 0x7FFFFFFF;
+	$payload .= $zlib->compress($self->nv_header_block);
+	return $self->SUPER::as_packet(
+		payload => $payload,
+	);
 }
 
 sub update_packet {
@@ -92,6 +133,11 @@ sub update_packet {
 	$self->{length} = 10 + length $self->nv_header_block;
 	$self->{packet} = $self->as_packet;
 	return $self;
+}
+
+sub to_string {
+	my $self = shift;
+	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort keys %{$self->{headers}};
 }
 
 1;
@@ -121,7 +167,6 @@ Tom Molesworth <cpan@entitymodel.com>
 =head1 LICENSE
 
 Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
-
 
 
 

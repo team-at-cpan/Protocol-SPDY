@@ -19,59 +19,112 @@ Provides some constants.
 
 use constant {
 	# Flag indicating whether this is the final packet in the stream
-	FLAG_FIN	=> 0x01,
+	FLAG_FIN => 0x01,
 	# Whether compression is enabled
-	FLAG_COMPRESS	=> 0x02,
+	FLAG_COMPRESS => 0x02,
+	# Unidirectional (section 2.3.6)
+	FLAG_UNIDIRECTIONAL	=> 0x02,
 	# Number of bytes in the header (common between control and data frames)
-	HEADER_LENGTH	=> 8,
+	HEADER_LENGTH => 8,
 	# The spec requires seeding our zlib instance with a specific dictionary to get
-	# better performance.
-	ZLIB_DICTIONARY	=> join('', qw(
-		optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-
-		languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi
-		f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser
-		-agent10010120020120220320420520630030130230330430530630740040140240340440
-		5406407408409410411412413414415416417500501502503504505accept-rangesageeta
-		glocationproxy-authenticatepublicretry-afterservervarywarningwww-authentic
-		ateallowcontent-basecontent-encodingcache-controlconnectiondatetrailertran
-		sfer-encodingupgradeviawarningcontent-languagecontent-lengthcontent-locati
-		oncontent-md5content-rangecontent-typeetagexpireslast-modifiedset-cookieMo
-		ndayTuesdayWednesdayThursdayFridaySaturdaySundayJanFebMarAprMayJunJulAugSe
-		pOctNovDecchunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplic
-		ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1
-		.1statusversionurl
-	)),
+	# better performance. Note that the dictionary varies depending on the version
+	# of the protocol we're dealing with - this is the spdy/3 dictionary:
+	ZLIB_DICTIONARY	=> join('',
+		(
+			map pack('N/a*', $_), qw(
+				options
+				head
+				post
+				put
+				delete
+				trace
+				accept
+				accept-charset
+				accept-encoding
+				accept-language
+				accept-ranges
+				age
+				allow
+				authorization
+				cache-control
+				connection
+				content-base
+				content-encoding
+				content-language
+				content-length
+				content-location
+				content-md5
+				content-range
+				content-type
+				date
+				etag
+				expect
+				expires
+				from
+				host
+				if-match
+				if-modified-since
+				if-none-match
+				if-range
+				if-unmodified-since
+				last-modified
+				location
+				max-forwards
+				pragma
+				proxy-authenticate
+				proxy-authorization
+				range
+				referer
+				retry-after
+				server
+				te
+				trailer
+				transfer-encoding
+				upgrade
+				user-agent
+				vary
+				via
+				warning
+				www-authenticate
+				method
+				get
+				status
+			), "200 OK", qw(
+				version
+				HTTP/1.1
+				url
+				public
+				set-cookie
+				keep-alive
+				origin
+			)
+		),
+		"100101201202205206300302303304305306307402405406407408409410411412413414415416417502504505",
+		"203 Non-Authoritative Information",
+		"204 No Content",
+		"301 Moved Permanently",
+		"400 Bad Request",
+		"401 Unauthorized",
+		"403 Forbidden",
+		"404 Not Found",
+		"500 Internal Server Error",
+		"501 Not Implemented",
+		"503 Service Unavailable",
+		"Jan Feb Mar Apr May Jun Jul Aug Sept Oct Nov Dec",
+		" 00:00:00",
+		" Mon, Tue, Wed, Thu, Fri, Sat, Sun, GMT",
+		"chunked,text/html,image/png,image/jpg,image/gif,application/xml,application/xhtml+xml,text/plain,text/javascript,public",
+		"privatemax-age=gzip,deflate,sdchcharset=utf-8charset=iso-8859-1,utf-,*,enq=0.",
+	),
+
 	# Which version we support
-	MAX_SUPPORTED_VERSION => 2,
+	MAX_SUPPORTED_VERSION => 3,
 # SETTINGS packet flags
 	# Request to persist settings
 	FLAG_SETTINGS_PERSIST_VALUE => 0x01,
 	# Inform other side of previously-persisted settings
 	FLAG_SETTINGS_PERSISTED => 0x02,
-	# Expected upload bandwidth
-	SETTINGS_UPLOAD_BANDWIDTH => 1,
-	# Expected download bandwidth
-	SETTINGS_DOWNLOAD_BANDWIDTH => 2,
-	# How long we expect packets to take to go from here to there and back again
-	SETTINGS_ROUND_TRIP_TIME => 3,
-	# How many streams we want
-	SETTINGS_MAX_CONCURRENT_STREAMS => 4,
-	# Something to do with CWND, whatever that happens to be
-	SETTINGS_CURRENT_CWND => 5,
-	# Retransmission rate on downloads (percentage)
-	SETTINGS_DOWNLOAD_RETRANS_RATE => 6,
-	# Start with windows of this size (in bytes)
-	SETTINGS_INITIAL_WINDOW_SIZE => 7,
-# Other message types
-	SYN_STREAM   => 1,
-	SYN_REPLY    => 2,
-	RST_STREAM   => 3,
-	SETTINGS     => 4,
-	NOOP         => 5,
-	PING         => 6,
-	GOAWAY       => 7,
-	HEADERS      => 8,
-# Status codes for RST_STREM
+# Status codes for RST_STREAM
 	PROTOCOL_ERROR => 1,
 	INVALID_STREAM => 2,
 	REFUSED_STREAM => 3,
@@ -79,12 +132,65 @@ use constant {
 	CANCEL => 5,
 	INTERNAL_ERROR => 6,
 	FLOW_CONTROL_ERROR => 7,
+# 
+	FRAME_TYPE_BY_ID => {
+		1 => 'SYN_STREAM',
+		2 => 'SYN_REPLY',
+		3 => 'RST_STREAM',
+		4 => 'SETTINGS',
+		5 => 'NOOP',
+		6 => 'PING',
+		7 => 'GOAWAY',
+		8 => 'HEADERS',
+	},
+	SETTINGS_BY_ID => {
+		# Expected upload bandwidth
+		1 => 'UPLOAD_BANDWIDTH',
+		# Expected download bandwidth
+		2 => 'DOWNLOAD_BANDWIDTH',
+		# How long we expect packets to take to go from here to there and back again
+		3 => 'ROUND_TRIP_TIME',
+		# How many streams we want
+		4 => 'MAX_CONCURRENT_STREAMS',
+		# TCP initial client window size
+		5 => 'CURRENT_CWND',
+		# Retransmission rate on downloads (percentage)
+		6 => 'DOWNLOAD_RETRANS_RATE',
+		# Start with windows of this size (in bytes)
+		7 => 'INITIAL_WINDOW_SIZE',
+	},
+	RST_STATUS_CODE_BY_ID => {
+		1 => 'PROTOCOL_ERROR',
+		2 => 'INVALID_STREAM',
+		3 => 'REFUSED_STREAM',
+		4 => 'UNSUPPORTED_VERSION',
+		5 => 'CANCEL',
+		6 => 'INTERNAL_ERROR',
+		7 => 'FLOW_CONTROL_ERROR',
+		8 => 'STREAM_IN_USE',
+		9 => 'STREAM_ALREADY_CLOSED',
+		10 => 'INVALID_CREDENTIALS',
+		11 => 'FRAME_TOO_LARGE',
+	},
 };
 
-our @EXPORT_OK = qw(FLAG_FIN FLAG_COMPRESS HEADER_LENGTH ZLIB_DICTIONARY MAX_SUPPORTED_VERSION
-SYN_STREAM SYN_REPLY RST_STREAM SETTINGS NOOP PING GOAWAY HEADERS
-PROTOCOL_ERROR INVALID_STREAM REFUSED_STREAM UNSUPPORTED_VERSION
-CANCEL INTERNAL_ERROR FLOW_CONTROL_ERROR
+# Reversed lookup mappings
+use constant {
+	FRAME_TYPE_BY_NAME => +{ reverse %{+FRAME_TYPE_BY_ID} },
+	SETTINGS_BY_NAME => +{ reverse %{+SETTINGS_BY_ID} },
+	RST_STATUS_CODE_BY_NAME => +{ reverse %{+RST_STATUS_CODE_BY_ID} },
+};
+
+our @EXPORT_OK = qw(
+	FLAG_FIN FLAG_COMPRESS FLAG_UNIDIRECTIONAL
+	FRAME_TYPE_BY_ID FRAME_TYPE_BY_NAME
+	SETTINGS_BY_ID SETTINGS_BY_NAME
+	RST_STATUS_CODE_BY_ID RST_STATUS_CODE_BY_NAME
+	SETTINGS_FLAGS
+	HEADER_LENGTH
+	ZLIB_DICTIONARY MAX_SUPPORTED_VERSION
+	PROTOCOL_ERROR INVALID_STREAM REFUSED_STREAM UNSUPPORTED_VERSION
+	CANCEL INTERNAL_ERROR FLOW_CONTROL_ERROR
 );
 
 our %EXPORT_TAGS = (
@@ -111,5 +217,5 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
 

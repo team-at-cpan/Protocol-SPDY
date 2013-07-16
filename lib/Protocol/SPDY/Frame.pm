@@ -1,6 +1,7 @@
 package Protocol::SPDY::Frame;
 use strict;
 use warnings;
+use 5.010;
 
 =head1 NAME
 
@@ -17,6 +18,11 @@ for the two currently-defined frame types.
 =cut
 
 use Protocol::SPDY::Constants ':all';
+
+use overload
+	'""' => 'to_string',
+	bool => sub { 1 },
+	fallback => 1;
 
 =head1 METHODS
 
@@ -38,10 +44,7 @@ checking ->isa(L<Protocol::SPDY::Frame::Data>) directly.
 
 =cut
 
-sub is_data {
-	my $self = shift;
-	ord(substr($self->packet, 0, 1)) & 1;
-}
+sub is_data { shift->isa('Protocol::SPDY::Frame::Data') ? 1 : 0 }
 
 =head2 new
 
@@ -53,10 +56,9 @@ subclass implementation.
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = bless {}, $class;
-	$self->{type} = delete $args{type};
-	$self->{packet} = "\0" x 8;
-	$self->{data} = '';
+	my $self = bless \%args, $class;
+	$self->{packet} //= "\0" x 8;
+	$self->{data} //= '';
 	return $self;
 }
 
@@ -118,7 +120,63 @@ Returns the type of this frame, such as SYN_STREAM, RST_STREAM etc.
 
 sub type { shift->{type} }
 
+sub type_string { FRAME_TYPE_BY_ID->{shift->{type}} }
+
 sub as_packet { '' }
+
+=head2 parse
+
+Extract a frame from the given packet if possible.
+
+=cut
+
+sub parse {
+	my $class = shift;
+	my $pkt = shift;
+	# 2.2 Frames always have a common header which is 8 bytes in length
+	return undef unless length $$pkt >= 8;
+
+	my ($ver, $type, $flags, $len, $len2) = unpack "n1n1c1n1c1", $$pkt;
+	$len = ($len << 8) | $len2;
+	my $control = $ver & 0x8000 ? 1 : 0;
+	$ver &= ~0x8000;
+#	say "Control: $control, ver: $ver, type: $type";
+#	say "Flags: $flags, length: $len";
+
+	# 2.2.1 Length: An unsigned 24-bit value representing the number of
+	# bytes after the length field
+	# 2.2.2 Length: An unsigned 24-bit value representing the number of
+	# bytes after the length field... It is valid to have a zero-length data
+	# frame.
+	return undef unless length $$pkt >= 8 + $len;
+
+	my %args = @_;
+	# Now we know what type we have, delegate to a subclass which knows more than
+	# we do about constructing the object.
+	my $target_class = $control ? 'Protocol::SPDY::Frame::Control' : 'Protocol::SPDY::Frame::Data';
+	my $obj = $target_class->from_data(
+		zlib => $args{zlib},
+		type => $type,
+		version => $ver,
+		flags => $flags,
+		data => substr $$pkt, 8, $len
+	);
+	substr $$pkt, 0, 8 + $len, '';
+	$obj
+}
+
+sub version { shift->{version} }
+sub flags { shift->{flags} }
+
+sub extract_frame {
+	my $class = shift;
+	$class->parse(@_)
+}
+
+sub to_string {
+	my $self = shift;
+	'SPDY:' . $self->type_string
+}
 
 1;
 

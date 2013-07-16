@@ -21,6 +21,8 @@ sub stream_id {
 	return $self->{stream_id};
 }
 
+sub payload { shift->{payload} }
+
 =head2 update_frametype_bit
 
 =cut
@@ -37,13 +39,33 @@ sub update_stream_id {
 	return $self;
 }
 
+sub hexdump {
+	my $idx = 0;
+	my @bytes = split //, join '', @_;
+	print "== Data frame: had " . @bytes . " bytes\n";
+	while(@bytes) {
+		my @chunk = splice @bytes, 0, 16;
+		printf "%04x ", $idx;
+		printf "%02x ", ord $_ for @chunk;
+		(my $txt = join '', @chunk) =~ s/[^[:print:]]/./g;
+		print "   " x (16 - @chunk);
+		print for split //, $txt;
+		print "\n";
+		$idx += @bytes;
+	}
+}
 sub as_packet {
 	my $self = shift;
-	my $base = $self->SUPER::as_packet(@_);
-	my $pkt = pack 'N1N1',
-			($self->is_control ? 0x8000 : 0x0000) | ($self->stream_id & 0x7FFFFFFF),
-			(($self->data_flags & 0xFF) << 24) | ($self->length & 0x00FFFFFF);
-	return $base . $pkt;
+	my $len = length(my $payload = $self->payload);
+	my $pkt = pack 'N1C1n1C1',
+		($self->is_control ? 0x80000000 : 0x00000000) | ($self->stream_id & 0x7FFFFFFF),
+		$self->flags,
+		$len >> 8,
+		$len & 0xFF;
+	$pkt .= $payload;
+	# warn "done packet: $pkt\n";
+	hexdump($pkt);
+	return $pkt;
 }
 
 1;

@@ -1,8 +1,8 @@
 package Protocol::SPDY::Frame::Control;
 use strict;
 use warnings;
+use 5.010;
 use parent qw(Protocol::SPDY::Frame);
-use Protocol::SPDY::Constants ':all';
 
 =head1 NAME
 
@@ -14,6 +14,11 @@ Support for control frames. Typically you'd interact with these through the top-
 L<Protocol::SPDY> object.
 
 Subclass of L<Protocol::SPDY::Frame>. See also L<Protocol::SPDY::Frame::Data>.
+
+=cut
+
+
+use Protocol::SPDY::Constants ':all';
 
 =head1 METHODS
 
@@ -127,12 +132,17 @@ sub update_control_flags {
 
 sub as_packet {
 	my $self = shift;
-	my $base = $self->SUPER::as_packet(@_);
-	my $pkt = "\0" x 8;
-	vec($pkt, 0, 16) = ($self->is_control ? 0x8000 : 0x0000) | ($self->control_version & 0x7FFF);
-	vec($pkt, 1, 16) = $self->control_type;
-	vec($pkt, 2, 16) = (($self->control_flags & 0xFF) << 24) | ($self->length & 0x00FFFFFF);
-	return $base . $pkt;
+	my %args = @_;
+	my $len = length($args{payload});
+	my $pkt = pack 'n1n1C1n1C1',
+		($self->is_control ? 0x8000 : 0x0000) | ($self->version & 0x7FFF),
+		$self->type,
+		$self->flags,
+		$len >> 8,
+		$len & 0xFF;
+	$pkt .= $args{payload};
+	# warn "done packet: $pkt\n";
+	return $pkt;
 }
 
 =head2 flag_compress
@@ -157,14 +167,52 @@ Returns a name-value pair header block.
 
 =cut
 
+sub hexdump {
+	my $idx = 0;
+	my @bytes = split //, join '', @_;
+	print "== had " . @bytes . " bytes\n";
+	while(@bytes) {
+		my @chunk = splice @bytes, 0, 16;
+		printf "%04x ", $idx;
+		printf "%02x ", ord $_ for @chunk;
+		(my $txt = join '', @chunk) =~ s/[^[:print:]]/./g;
+		print "   " x (16 - @chunk);
+		print for split //, $txt;
+		print "\n";
+		$idx += @bytes;
+	}
+}
 sub pairs_to_nv_header {
 	my $class = shift;
 	my @hdr = @_;
-	my $data = pack 'n1', @hdr / 2;
-	$data .= pack '(n/A*)*', @hdr;
+	my $data = pack 'N1', @hdr / 2;
+	$data .= pack '(N/A*)*', @hdr;
 	return $data;
 }
 
+sub find_class_for_type {
+	my $class = shift;
+	my $type = shift;
+	my $name = FRAME_TYPE_BY_ID->{$type} or die "No class for $type";
+	return 'Protocol::SPDY::Frame::Control::' . $name;
+}
+
+sub from_data {
+	my $class = shift;
+	my %args = @_;
+	my $flags = $args{flags};
+	my $type = $args{type};
+#	say "Type is " . CONTROL_FRAME_TYPES->{$type};
+#	say "* FIN" if $flags & FLAG_FIN;
+#	say "* UNIDIRECTIONAL" if $flags & FLAG_UNIDIRECTIONAL;
+	my $target_class = $class->find_class_for_type($type);
+	return $target_class->from_data(%args);
+}
+
+sub to_string {
+	my $self = shift;
+	$self->SUPER::to_string . ', control';
+}
 1;
 
 __END__

@@ -172,6 +172,10 @@ Show frames in captured traffic:
 
 # EXAMPLE: examples/dumper.pl
 
+SSL/TLS next protocol negotiation for SPDY/3 with HTTP/1.1 fallback:
+
+# EXAMPLE: examples/npn.pl
+
 =head1 SEE ALSO
 
 Since the protocol is still in flux, it may be advisable to keep an eye on

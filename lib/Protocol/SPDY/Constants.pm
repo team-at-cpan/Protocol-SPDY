@@ -23,7 +23,7 @@ use constant {
 	# Whether compression is enabled
 	FLAG_COMPRESS => 0x02,
 	# Unidirectional (section 2.3.6)
-	FLAG_UNIDIRECTIONAL	=> 0x02,
+	FLAG_UNI	=> 0x02,
 	# Number of bytes in the header (common between control and data frames)
 	HEADER_LENGTH => 8,
 	# The spec requires seeding our zlib instance with a specific dictionary to get
@@ -182,7 +182,7 @@ use constant {
 };
 
 our @EXPORT_OK = qw(
-	FLAG_FIN FLAG_COMPRESS FLAG_UNIDIRECTIONAL
+	FLAG_FIN FLAG_COMPRESS FLAG_UNI
 	FRAME_TYPE_BY_ID FRAME_TYPE_BY_NAME
 	SETTINGS_BY_ID SETTINGS_BY_NAME
 	RST_STATUS_CODE_BY_ID RST_STATUS_CODE_BY_NAME

@@ -18,14 +18,25 @@ use Protocol::SPDY::Constants ':all';
 
 sub header {
 	my $self = shift;
-	my $hdr = $self->{headers}{+shift} or return undef;
-	$hdr->[0]
+	my $k = shift;
+	my ($hdr) = grep $_->[0] eq $k, @{$self->{headers}};
+	return undef unless $hdr;
+	return join "\0", @$hdr[1..$#$hdr];
+}
+
+sub headers { shift->{headers} }
+
+sub header_list {
+	my $self = shift;
+	map $_->[0], @{$self->{headers}};
 }
 
 sub header_multi {
 	my $self = shift;
 	@{$self->{headers}{+shift}}
 }
+
+sub slot { shift->{slot} }
 
 sub from_data {
 	my $class = shift;
@@ -35,36 +46,58 @@ sub from_data {
 	$associated_stream_id &= ~0x80000000;
 	my $pri = ($slot & 0xE000) >> 13;
 	$slot &= 0xFF;
-#	say "Stream $stream_id (associated with $associated_stream_id), priority $pri, slot $slot";
 
 	my $zlib = delete $args{zlib};
 	my $out = $zlib->decompress($args{data});
-
-	my ($count) = unpack 'N1', substr $out, 0, 4, '';
-	my %header;
-	for my $idx (1..$count) {
-		my ($k, $v) = unpack 'N/A*N/A*', $out;
-		my @v = split /\0/, $v;
-#		say "$idx - $k: " . join ',', @v;
-		$header{$k} = \@v;
-		substr $out, 0, 8 + length($k) + length($v), '';
-	}
+	my ($headers, $size) = $class->extract_headers($out);
 	$class->new(
 		%args,
 		stream_id => $stream_id,
 		associated_stream_id => $associated_stream_id,
 		priority => $pri,
 		slot => $slot,
-		headers => \%header,
+		headers => $headers,
 	);
 }
 
+sub nv_headers { @{shift->{name_value} ||= []} }
+
+sub nv_header_block {
+	my $self = shift;
+	$self->{nv_header_block} = $self->pairs_to_nv_header($self->nv_headers) unless exists $self->{nv_header_block};
+	return $self->{nv_header_block};
+}
+
 sub stream_id { shift->{stream_id} }
+sub associated_stream_id { shift->{associated_stream_id} }
+
+sub priority {
+	my $self = shift;
+	if(@_) {
+		$self->{priority} = shift;
+		return $self
+	}
+	return $self->{priority}
+}
 
 sub process {
 	my $self = shift;
 	my $spdy = shift;
 	$spdy->add_frame($self);
+}
+
+sub as_packet {
+	my $self = shift;
+	my $zlib = shift;
+	my $payload = pack 'N1', $self->stream_id & 0x7FFFFFFF;
+	$payload .= pack 'N1', $self->associated_stream_id & 0x7FFFFFFF;
+	$payload .= pack 'C1', ($self->priority & 0x07) << 5;
+	$payload .= pack 'C1', $self->slot;
+	my $block = $self->pairs_to_nv_header(map {; $_->[0], join "\0", @{$_}[1..$#$_] } @{$self->headers});
+	$payload .= $zlib->compress($block);
+	return $self->SUPER::as_packet(
+		payload => $payload,
+	);
 }
 
 sub to_string {

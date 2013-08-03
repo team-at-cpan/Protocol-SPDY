@@ -1,7 +1,7 @@
 package Protocol::SPDY::Compress;
 use strict;
 use warnings;
-use Compress::Raw::Zlib qw(Z_OK Z_SYNC_FLUSH WANT_GZIP_OR_ZLIB adler32);
+use Compress::Raw::Zlib qw(Z_OK Z_SYNC_FLUSH WANT_GZIP_OR_ZLIB);
 use Protocol::SPDY::Constants ':all';
 
 sub new { my $class = shift; bless { }, $class }

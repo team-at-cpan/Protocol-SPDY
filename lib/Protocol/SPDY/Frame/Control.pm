@@ -108,6 +108,17 @@ sub flag_fin {
 	$self->control_flags & FLAG_FIN
 }
 
+sub flag_uni {
+	my $self = shift;
+	if(@_) {
+		my $uni = shift;
+		my $flags = $self->control_flags;
+		$self->control_flags($uni ? $flags | FLAG_UNI : $flags & ~FLAG_UNI);
+		return $self;
+	}
+	$self->control_flags & FLAG_FIN
+}
+
 =head2 update_stream_id
 
 =cut
@@ -160,13 +171,6 @@ sub flag_compress {
 	$self->control_flags & FLAG_COMPRESS
 }
 
-
-=head2 pairs_to_nv_header
-
-Returns a name-value pair header block.
-
-=cut
-
 sub hexdump {
 	my $idx = 0;
 	my @bytes = split //, join '', @_;
@@ -182,6 +186,13 @@ sub hexdump {
 		$idx += @bytes;
 	}
 }
+
+=head2 pairs_to_nv_header
+
+Returns a name-value pair header block.
+
+=cut
+
 sub pairs_to_nv_header {
 	my $class = shift;
 	my @hdr = @_;

@@ -17,6 +17,7 @@ for the two currently-defined frame types.
 
 =cut
 
+use Encode;
 use Protocol::SPDY::Constants ':all';
 
 use overload
@@ -171,6 +172,22 @@ sub flags { shift->{flags} }
 sub extract_frame {
 	my $class = shift;
 	$class->parse(@_)
+}
+
+sub extract_headers {
+	my $self = shift;
+	my $data = shift;
+	my $start_len = length $data;
+	my ($count) = unpack 'N1', substr $data, 0, 4, '';
+	my @headers;
+	for my $idx (1..$count) {
+		my ($k, $v) = unpack 'N/A* N/A*', $data;
+		my @v = split /\0/, $v;
+		# Don't allow non-ASCII characters
+		push @headers, [ Encode::encode(ascii => (my $key = $k), Encode::FB_CROAK) => @v ];
+		substr $data, 0, 8 + length($k) + length($v), '';
+	}
+	return \@headers, $start_len - length($data);
 }
 
 sub to_string {

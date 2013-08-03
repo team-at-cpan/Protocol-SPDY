@@ -223,14 +223,14 @@ C<on_done>, C<on_fail> or C<on_cancel> or helpers such as C<then> as usual:
 
 =cut
 
-=head2 reply
+=head2 replied
 
 We have received a SYN_REPLY from the other side. If the stream is reset before
 that happens, this will be cancelled with the reason as the first parameter.
 
 =cut
 
-sub reply { }
+sub replied { }
 
 =head2 finished
 

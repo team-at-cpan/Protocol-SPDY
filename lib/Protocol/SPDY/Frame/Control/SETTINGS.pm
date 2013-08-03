@@ -16,24 +16,43 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
-sub setting { $_[0]->{settings}{$_[1]} }
+sub setting {
+	my $self = shift;
+	my $k = shift;
+	$k =~ s/^SETTINGS_//;
+	my $id = SETTINGS_BY_NAME->{$k} or die "unknown setting $k";
+	my ($v) = grep $_->[0] == $id, @{$self->{settings}};
+	$v->[2]
+}
 
 sub from_data {
 	my $class = shift;
 	my %args = @_;
 	my ($count) = unpack "N1", substr $args{data}, 0, 4, '';
-	my %settings;
+	my @settings;
 	for my $idx (1..$count) {
 		my ($flags, $id, $id2, $v) = unpack 'C1n1C1N1', substr $args{data}, 0, 8, '';
 		$id = ($id << 8) | $id2;
-		(my $label = SETTINGS_BY_ID->{$id}) =~ s/^SETTINGS_//; 
-		$settings{$label} = $v;
+		push @settings, [ $id, $flags, $v ];
 	}
-#	use Data::Dumper;
-#	print Dumper(\%settings);
 	$class->new(
 		%args,
-		settings => \%settings,
+		settings => \@settings,
+	);
+}
+
+sub as_packet {
+	my $self = shift;
+	my $zlib = shift;
+
+	my @settings = @{$self->{settings}};
+	my $payload = pack 'N1', scalar @settings;
+	for my $idx (1..@settings) {
+		my $item = shift @settings;
+		$payload .= pack 'C1C1n1N1', $item->[1], ($item->[0] >> 16) & 0xFF, $item->[0] & 0xFFFF, $item->[2];
+	}
+	return $self->SUPER::as_packet(
+		payload => $payload,
 	);
 }
 
@@ -46,7 +65,7 @@ sub process {
 
 sub to_string {
 	my $self = shift;
-	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->setting($_) } sort keys %{$self->{settings}};
+	$self->SUPER::to_string . ', ' . join ',', map { (SETTINGS_BY_ID->{$_->[0]} or die "unknown setting $_->[0]") . '=' . $_->[2] } @{$self->{settings}};
 }
 
 1;

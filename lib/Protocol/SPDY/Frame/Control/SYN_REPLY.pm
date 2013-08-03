@@ -2,7 +2,7 @@ package Protocol::SPDY::Frame::Control::SYN_REPLY;
 use strict;
 use warnings;
 use 5.010;
-use parent qw(Protocol::SPDY::Frame::Control);
+use parent qw(Protocol::SPDY::Frame::HeaderSupport Protocol::SPDY::Frame::Control);
 
 =head1 NAME
 
@@ -16,41 +16,20 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
-sub header {
-	my $self = shift;
-	my $hdr = $self->{headers}{+shift} or return undef;
-	$hdr->[0]
-}
-
-sub header_multi {
-	my $self = shift;
-	@{$self->{headers}{+shift}}
-}
-
 sub from_data {
 	my $class = shift;
 	my %args = @_;
 	my ($stream_id) = unpack "N1", substr $args{data}, 0, 4, '';
 	$stream_id &= ~0x80000000;
-	say "Stream $stream_id";
 	my $dict = ZLIB_DICTIONARY;
 	my $data = $args{data};
 	my $zlib = delete $args{zlib};
 	my $out = $zlib->decompress($args{data});
-#	printf "%v02x\n", $out;
-	my ($count) = unpack 'N1', substr $out, 0, 4, '';
-	my %header;
-	for my $idx (1..$count) {
-		my ($k, $v) = unpack 'N/A*N/A*', $out;
-		my @v = split /\0/, $v;
-#		say "$idx - $k: " . join ',', @v;
-		$header{$k} = \@v;
-		substr $out, 0, 8 + length($k) + length($v), '';
-	}
+	my ($headers, $size) = $class->extract_headers($out);
 	$class->new(
 		%args,
 		stream_id => $stream_id,
-		headers => \%header,
+		headers   => $headers,
 	);
 }
 
@@ -78,7 +57,7 @@ Instantiate a new SYN_REPLY frame.
 
 =cut
 
-sub new {
+sub xx_new {
 	my ($class, %args) = @_;
 	my $stream_id = delete $args{stream_id};
 	die "no stream_id" unless defined $stream_id;
@@ -98,13 +77,13 @@ sub new {
 	my $self = $class->SUPER::new(%args);
 	$self->{flags} = $flags;
 	$self->{stream_id} = $stream_id;
+	$self->{headers} = $args{headers};
 	$self->{name_value} = $nv;
 #	$self->update_packet;
 	return $self;
 }
 
 sub stream_id { shift->{stream_id} }
-sub nv_headers { @{shift->{name_value}} }
 
 sub nv_header_block {
 	my $self = shift;
@@ -122,7 +101,8 @@ sub as_packet {
 	my $self = shift;
 	my $zlib = shift;
 	my $payload = pack 'N1', $self->stream_id & 0x7FFFFFFF;
-	$payload .= $zlib->compress($self->nv_header_block);
+	my $block = $self->pairs_to_nv_header(map {; $_->[0], join "\0", @{$_}[1..$#$_] } @{$self->headers});
+	$payload .= $zlib->compress($block);
 	return $self->SUPER::as_packet(
 		payload => $payload,
 	);

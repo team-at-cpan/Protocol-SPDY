@@ -2,7 +2,7 @@ package Protocol::SPDY::Frame::Control::SYN_STREAM;
 use strict;
 use warnings;
 use 5.010;
-use parent qw(Protocol::SPDY::Frame::Control);
+use parent qw(Protocol::SPDY::Frame::HeaderSupport Protocol::SPDY::Frame::Control);
 
 =head1 NAME
 
@@ -15,26 +15,6 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 =cut
 
 use Protocol::SPDY::Constants ':all';
-
-sub header {
-	my $self = shift;
-	my $k = shift;
-	my ($hdr) = grep $_->[0] eq $k, @{$self->{headers}};
-	return undef unless $hdr;
-	return join "\0", @$hdr[1..$#$hdr];
-}
-
-sub headers { shift->{headers} }
-
-sub header_list {
-	my $self = shift;
-	map $_->[0], @{$self->{headers}};
-}
-
-sub header_multi {
-	my $self = shift;
-	@{$self->{headers}{+shift}}
-}
 
 sub slot { shift->{slot} }
 
@@ -58,14 +38,6 @@ sub from_data {
 		slot => $slot,
 		headers => $headers,
 	);
-}
-
-sub nv_headers { @{shift->{name_value} ||= []} }
-
-sub nv_header_block {
-	my $self = shift;
-	$self->{nv_header_block} = $self->pairs_to_nv_header($self->nv_headers) unless exists $self->{nv_header_block};
-	return $self->{nv_header_block};
 }
 
 sub stream_id { shift->{stream_id} }

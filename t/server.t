@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Protocol::SPDY::Server;
+use Protocol::SPDY;
 
 use Test::More;
 

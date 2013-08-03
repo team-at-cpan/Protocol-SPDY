@@ -73,10 +73,10 @@ see L<#74387|https://rt.cpan.org/Ticket/Display.html?id=74387> for progress on t
 
 =back
 
-Eventually L<POE> or L<AnyEvent> implementations may arrive if someone more
-familiar with those frameworks takes an interest. On the server side, it should
-be possible to incorporate this as a plugin for Plack/PSGI so that any PSGI-compatible
-web application can support SPDY requests.
+Eventually L<POE> or L<Reflex> implementations may arrive if someone more familiar
+with those frameworks takes an interest. On the server side, it should be possible
+to incorporate this as a plugin for Plack/PSGI so that any PSGI-compatible web
+application can support SPDY requests.
 
 For a simple blocking client and server implementation, see the C<examples/> directory.
 

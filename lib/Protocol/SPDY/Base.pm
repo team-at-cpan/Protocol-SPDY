@@ -24,8 +24,8 @@ use Protocol::SPDY::Constants ':all';
 sub new {
 	my $class = shift;
 	bless {
-		zlib => Protocol::SPDY::Compress->new,
-		pending_send => [],
+		zlib         => Protocol::SPDY::Compress->new,
+		pending_send => [ ],
 		@_
 	}, $class
 }
@@ -38,10 +38,7 @@ If we want to close, send a GOAWAY message first.
 
 =cut
 
-sub request_close {
-	my $self = shift;
-	$self->send_message(GOAWAY => );
-}
+sub request_close { shift->goaway('OK') }
 
 =head2 check_version
 
@@ -119,150 +116,6 @@ sub next_stream_id {
 	return 0;
 }
 
-=head2 packet_syn_stream
-
-Generate a SYN_STREAM packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_syn_stream {
-	my ($self, %args) = @_;
-}
-
-=head2 packet_syn_reply
-
-Generate a SYN_REPLY packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_syn_reply {
-	my ($self, %args) = @_;
-}
-
-=head2 packet_rst_stream
-
-Generate a RST_STREAM packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_rst_stream {
-	my ($self, %args) = @_;
-}
-
-=head2 packet_settings
-
-Generate a SETTINGS packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_settings {
-	my ($self, %args) = @_;
-}
-
-=head2 packet_noop
-
-Generate a SYN_STREAM packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_noop {
-	my ($self, %args) = @_;
-}
-
-=head2 packet_ping
-
-Generate a PING packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_ping {
-	my ($self, %args) = @_;
-}
-
-=head2 packet_goaway
-
-Generate a GOAWAY packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_goaway {
-	my ($self, %args) = @_;
-}
-
-=head2 packet_headers
-
-Generate a HEADERS packet.
-
-Takes the following options:
-
-=over 4
-
-=item *
-
-=back
-
-=cut
-
-sub packet_headers {
-	my ($self, %args) = @_;
-}
-
 sub packet_request {
 	my ($self, %args) = @_;
 
@@ -336,13 +189,6 @@ sub parse_response {
 	}
 }
 
-sub send_frame {
-	my $self = shift;
-	my ($type, $data) = @_;
-	$self->write($self->build_packet($type, $data));
-	return $self;
-}
-
 sub queue_frame {
 	my $self = shift;
 	my $frame = shift;
@@ -355,11 +201,6 @@ sub build_packet {
 	return Protocol::SPDY::Frame::Control->new(
 		# type	=> RST_STREAM,
 	);
-}
-
-sub extract_frame {
-	my $self = shift;
-	Protocol::SPDY::Frame->extract_frame(@_, zlib => $self->zlib);
 }
 
 sub handle_frame {
@@ -398,8 +239,6 @@ sub add_frame {
 	);
 }
 
-1;
-
 =pod
 
 =head2 extract_frame
@@ -408,26 +247,105 @@ Given a scalar reference to a byte buffer, this will extract the first frame if 
 and return the bytes if it succeeded, undef if not. No frame validation is performed: the
 bytes are extracted based on the length information only.
 
+=cut
+
+sub extract_frame {
+	my $self = shift;
+	my $buffer = shift;
+	# 2.2 Frames always have a common header which is 8 bytes in length
+	return undef unless length $$buffer >= 8;
+
+	(undef, my $len) = unpack 'N2', $$buffer;
+	$len &= 0x00FFFFFF;
+	return undef unless length $$buffer >= 8 + $len;
+	my $bytes = substr $$buffer, 0, 8 + $len, '';
+	return $bytes;
+}
+
 =head2 parse_frame
 
 Parse a frame extracted by L</extract_frame>. Returns an appropriate subclass of L<Protocol::SPDY::Frame>
 if this succeeded, dies if it fails.
 
+=cut
+
+sub parse_frame {
+	my $self = shift;
+	my $pkt = shift;
+	return Protocol::SPDY::Frame->parse(
+		$pkt,
+		zlib => $self->zlib
+	);
+}
+
 =head2 goaway
 
 Requests termination of the connection.
+
+=cut
+
+sub goaway {
+	my $self = shift;
+	my $status = shift;
+
+	# We accept numeric or string status codes at this level
+	$status = {
+		OK             => 0,
+		PROTOCOL_ERROR => 1,
+		INTERNAL_ERROR => 2,
+	}->{$status} unless 0+$status eq $status;
+
+	$self->queue_frame(
+		Protocol::SPDY::Frame::GOAWAY->new(
+			last_stream => $self->last_accepted_stream_id,
+			status => $status,
+		)
+	);
+}
 
 =head2 ping
 
 Sends a ping request. We should get a PING packet back as a high-priority reply.
 
+=cut
+
+sub ping {
+	my $self = shift;
+	$self->queue_frame(
+		Protocol::SPDY::Frame::PING->new(
+			id => $self->next_ping_id,
+		)
+	);
+}
+
 =head2 settings
 
 Send settings to the remote.
+
+=cut
+
+sub settings {
+	my $self = shift;
+	$self->queue_frame(
+		Protocol::SPDY::Frame::SETTINGS->new(
+			id       => $self->next_ping_id,
+			settings => \@_,
+		)
+	);
+}
 
 =head2 credential
 
 Sends credential information to the remote.
 
 =cut
+
+sub credential {
+	my $self = shift;
+	die "Credential frames are not yet implemented";
+}
+
+1;
+
+__END__
 

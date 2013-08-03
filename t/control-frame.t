@@ -52,9 +52,9 @@ double_check {
 	my $frame = shift;
 	isa_ok($frame, 'Protocol::SPDY::Frame::Control::SETTINGS');
 	is($frame->type_string, 'SETTINGS', 'have SETTINGS as type');
-	is($frame->setting('MAX_CONCURRENT_STREAMS'), 1000, 'MAX_CONCURRENT_STREAMS = 1000');
 	is($frame->setting('INITIAL_WINDOW_SIZE'), 10485760, 'INITIAL_WINDOW_SIZE = 10485760');
-	is("$frame", "SPDY:SETTINGS, control, INITIAL_WINDOW_SIZE=10485760,MAX_CONCURRENT_STREAMS=1000", 'stringified frame');
+	is($frame->setting('MAX_CONCURRENT_STREAMS'), 1000, 'MAX_CONCURRENT_STREAMS = 1000');
+	is("$frame", "SPDY:SETTINGS, control, MAX_CONCURRENT_STREAMS=1000,INITIAL_WINDOW_SIZE=10485760", 'stringified frame');
 	done_testing;
 } <<'EOF';
 80 03 00 04 00 00 00 14 00 00 00 02 00 00 00 04 00 00 03 e8 00 00 00 07 00 a0 00 00
@@ -112,7 +112,7 @@ EOF
 note 'SYN_REPLY frame';
 double_check {
 	my $frame = shift;
-	plan tests => 19;
+	plan tests => 8;
 	isa_ok($frame, 'Protocol::SPDY::Frame::Control::SYN_REPLY');
 	is($frame->stream_id, 1, 'stream_id is correct');
 	is($frame->version, 3, 'is version 3');

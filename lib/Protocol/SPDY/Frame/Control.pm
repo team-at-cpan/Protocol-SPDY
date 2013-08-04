@@ -24,151 +24,34 @@ use Protocol::SPDY::Constants ':all';
 
 =cut
 
-sub new {
-	my ($class, %args) = @_;
-	my $self = $class->SUPER::new(%args);
-	return $self;
-}
-
 sub is_control { 1 }
 sub is_data { 0 }
 
-=head2 update_frametype_bit
+sub version { die "no version for $_[0]" unless $_[0]->{version}; shift->{version} }
+
+sub type { FRAME_TYPE_BY_NAME->{ shift->type_name } }
+
+=head2 fin
 
 =cut
 
-sub update_frametype_bit { shift->update_control_type_id }
-
-=head2 control_version
-
-=cut
-
-sub control_version {
-	my $self = shift;
-	if(@_) {
-		my $id = shift;
-		$self->{control_version} = $id;
-		$self->update_control_version;
-		return $self;
-	}
-	unless(exists($self->{control_version})) {
-		$self->{control_version} = unpack('n1', substr $self->packet, 0, 2) >> 1;
-	}
-	return $self->{control_version};
-}
-
-=head2 control_type
-
-=cut
-
-sub control_type {
-	my $self = shift;
-	if(@_) {
-		my $id = shift;
-		$self->{control_type} = $id;
-		$self->update_control_type;
-		return $self;
-	}
-	unless(exists($self->{control_type})) {
-		$self->{control_type} = unpack('n1', substr $self->packet, 2, 2) >> 1;
-	}
-	return $self->{control_type};
-}
-
-=head2 control_flags
-
-=cut
-
-sub control_flags {
-	my $self = shift;
-	if(@_) {
-		my $flags = shift;
-		$self->{control_flags} = $flags;
-		$self->update_control_flags;
-		return $self;
-	}
-	unless(exists($self->{control_flags})) {
-		$self->{control_flags} = unpack 'C1', substr $self->packet, 4, 1;
-	}
-	return $self->{control_flags};
-}
-
-=head2 flag_fin
-
-=cut
-
-sub flag_fin {
-	my $self = shift;
-	if(@_) {
-		my $fin = shift;
-		my $flags = $self->control_flags;
-		$self->control_flags($fin ? $flags | FLAG_FIN : $flags & ~FLAG_FIN);
-		return $self;
-	}
-	$self->control_flags & FLAG_FIN
-}
-
-sub flag_uni {
-	my $self = shift;
-	if(@_) {
-		my $uni = shift;
-		my $flags = $self->control_flags;
-		$self->control_flags($uni ? $flags | FLAG_UNI : $flags & ~FLAG_UNI);
-		return $self;
-	}
-	$self->control_flags & FLAG_FIN
-}
-
-=head2 update_stream_id
-
-=cut
-
-sub update_stream_id {
-	my $self = shift;
-	substr $self->{packet}, 0, 4, pack 'N1', (($self->is_data & 0x01) | ($self->stream_id << 1));
-	return $self;
-}
-
-=head2 update_control_flags
-
-Updates the control_flags
-
-=cut
-
-sub update_control_flags {
-	my $self = shift;
-	substr $self->{packet}, 4, 1, pack 'C1', ($self->control_flags & 0xFF);
-	return $self;
-}
+sub uni { shift->{uni} }
+sub compress { shift->{compress} }
 
 sub as_packet {
 	my $self = shift;
 	my %args = @_;
 	my $len = length($args{payload});
+	warn "undef: " . join ',', $_ for grep !defined($self->$_), qw(version type);
 	my $pkt = pack 'n1n1C1n1C1',
 		($self->is_control ? 0x8000 : 0x0000) | ($self->version & 0x7FFF),
 		$self->type,
-		$self->flags,
+		($self->fin ? FLAG_FIN : 0) | ($self->uni ? FLAG_UNI : 0) | ($self->compress ? FLAG_COMPRESS : 0),
 		$len >> 8,
 		$len & 0xFF;
 	$pkt .= $args{payload};
 	# warn "done packet: $pkt\n";
 	return $pkt;
-}
-
-=head2 flag_compress
-
-=cut
-
-sub flag_compress {
-	my $self = shift;
-	if(@_) {
-		my $comp = shift;
-		my $flags = $self->control_flags;
-		$self->control_flags($comp ? ($flags | FLAG_COMPRESS) : ($flags & ~FLAG_COMPRESS));
-		return $self;
-	}
-	$self->control_flags & FLAG_COMPRESS
 }
 
 sub hexdump {
@@ -204,7 +87,7 @@ sub pairs_to_nv_header {
 sub find_class_for_type {
 	my $class = shift;
 	my $type = shift;
-	my $name = FRAME_TYPE_BY_ID->{$type} or die "No class for $type";
+	my $name = exists FRAME_TYPE_BY_NAME->{$type} ? $type : FRAME_TYPE_BY_ID->{$type} or die "No class for $type";
 	return 'Protocol::SPDY::Frame::Control::' . $name;
 }
 

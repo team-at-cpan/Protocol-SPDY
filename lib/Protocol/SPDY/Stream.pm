@@ -1,6 +1,7 @@
 package Protocol::SPDY::Stream;
 use strict;
 use warnings;
+use parent qw(Mixin::Event::Dispatch);
 
 =head1 NAME
 
@@ -85,7 +86,13 @@ size
 
 =cut
 
+use Protocol::SPDY::Constants ':all';
 use Scalar::Util ();
+
+use overload
+	'""' => 'to_string',
+	bool => sub { 1 },
+	fallback => 1;
 
 =head2 METHODS
 
@@ -98,28 +105,79 @@ sub new {
 	$self;
 }
 
+sub new_from_syn {
+	my $class = shift;
+	my $frame = shift;
+	my %args = @_;
+	my $self = bless {
+		stream_id => $frame->id,
+		connection => $args{connection},
+	}, $class;
+	Scalar::Util::weaken($self->{connection});
+	$self;
+}
+
 sub id { shift->{id} }
 
 sub seen_reply { shift->{seen_reply} ? 1 : 0 }
 
 sub connection { shift->{connection} }
 
+sub priority { 1 }
+sub version { 3 }
+
 sub syn_frame {
 	my $self = shift;
 	Protocol::SPDY::Frame::Control::SYN_STREAM->new(
-		stream_id => $self,
-		priority => 1,
+		stream_id => $self->id,
+		priority  => $self->priority,
+		slot      => 0,
+		version   => $self->version,
+		flags     => 0,
+		headers   => [],
 	);
 }
+
+sub sent_header { $_[0]->{sent_headers}{$_[1]} }
+sub sent_headers { $_[0]->{sent_headers} }
+sub received_header { $_[0]->{received_headers}{$_[1]} }
+sub received_headers { $_[0]->{received_headers} }
 
 sub handle_frame {
 	my $self = shift;
 	my $frame = shift;
+	if($frame->is_data) {
+		$self->invoke_event(data => $frame);
+	} elsif($frame->type_name eq 'WINDOW_UPDATE') {
+		die "we have a window update";
+	} elsif($frame->type_name eq 'RST_STREAM') {
+		$self->accepted->fail($frame->status_code_as_text) unless $self->replied->is_ready;
+	} elsif($frame->type_name eq 'SYN_REPLY') {
+		die "SYN_REPLY on a stream which has already been refused or replied" if $self->accepted->is_ready;
+		$self->accepted->done;
+		$self->replied->done;
+	} elsif($frame->type_name eq 'HEADERS') {
+		die "HEADERS on a stream which has not yet seen a reply" unless $self->accepted->is_ready;
+		foreach my $k ($frame->header_list) {
+			$self->{received_headers}->{$k} = $frame->header($k);
+		}
+		$self->invoke_event(headers => $frame);
+	} elsif($frame->type_name eq 'SYN_STREAM') {
+		die "SYN_STREAM on an existing stream";
+	} else {
+		die "what is $frame ?";
+	}
+}
+
+sub queue_frame {
+	my $self = shift;
+	my $frame = shift;
+	$self->connection->queue_frame($frame);
 }
 
 sub start {
 	my $self = shift;
-	$self->connection->queue_frame($self->syn_frame);
+	$self->queue_frame($self->syn_frame);
 	$self
 }
 
@@ -171,6 +229,13 @@ Sends a data packet.
 
 sub send_data {
 	my $self = shift;
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Data->new(
+			stream_id => $self->id,
+			payload   => shift,
+		)
+	);
+	$self
 }
 
 =head2 METHODS - Accessors
@@ -230,7 +295,12 @@ that happens, this will be cancelled with the reason as the first parameter.
 
 =cut
 
-sub replied { }
+sub replied {
+	my $self = shift;
+	$self->{future_replied} ||= Future->new->on_done(sub {
+		$self->{seen_reply} = 1
+	})
+}
 
 =head2 finished
 
@@ -240,7 +310,10 @@ say. Will be cancelled with the reason on reset.
 
 =cut
 
-sub finished { }
+sub finished {
+	my $self = shift;
+	$self->{future_finished} ||= Future->new
+}
 
 =head2 closed
 
@@ -249,7 +322,28 @@ Might still be cancelled if the parent object disappears.
 
 =cut
 
-sub closed { }
+sub closed {
+	my $self = shift;
+	$self->{future_closed} ||= Future->new
+}
+
+=head2 accepted
+
+The remote accepted this stream immediately after our initial SYN_STREAM. If you
+want notification on rejection, use an ->on_fail handler on this method.
+
+=cut
+
+sub accepted {
+	my $self = shift;
+	$self->{future_accepted} ||= Future->new
+}
+
+
+sub to_string {
+	my $self = shift;
+	'SPDY:Stream ID ' . $self->id
+}
 
 1;
 

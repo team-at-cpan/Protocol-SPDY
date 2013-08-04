@@ -16,6 +16,8 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'SYN_STREAM' }
+
 sub slot { shift->{slot} }
 
 sub from_data {
@@ -62,7 +64,7 @@ sub as_packet {
 	my $self = shift;
 	my $zlib = shift;
 	my $payload = pack 'N1', $self->stream_id & 0x7FFFFFFF;
-	$payload .= pack 'N1', $self->associated_stream_id & 0x7FFFFFFF;
+	$payload .= pack 'N1', ($self->associated_stream_id || 0) & 0x7FFFFFFF;
 	$payload .= pack 'C1', ($self->priority & 0x07) << 5;
 	$payload .= pack 'C1', $self->slot;
 	my $block = $self->pairs_to_nv_header(map {; $_->[0], join "\0", @{$_}[1..$#$_] } @{$self->headers});
@@ -74,7 +76,7 @@ sub as_packet {
 
 sub to_string {
 	my $self = shift;
-	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort keys %{$self->{headers}};
+	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort keys @{$self->{headers}};
 }
 
 1;
@@ -104,6 +106,5 @@ Tom Molesworth <cpan@entitymodel.com>
 =head1 LICENSE
 
 Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
-
 
 

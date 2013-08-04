@@ -16,6 +16,8 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'SETTINGS' }
+
 sub setting {
 	my $self = shift;
 	my $k = shift;

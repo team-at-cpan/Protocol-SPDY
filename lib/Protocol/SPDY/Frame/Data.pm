@@ -3,40 +3,26 @@ use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Frame);
 
+use Protocol::SPDY::Constants ':all';
+
 =head2 stream_id
 
 =cut
 
-sub stream_id {
-	my $self = shift;
-	if(@_) {
-		my $id = shift;
-		$self->{stream_id} = $id;
-		$self->update_stream_id;
-		return $self;
-	}
-	unless(exists($self->{stream_id})) {
-		$self->{stream_id} = unpack('N1', substr $self->packet, 0, 4) >> 1;
-	}
-	return $self->{stream_id};
-}
+sub stream_id { shift->{stream_id} }
 
 sub payload { shift->{payload} }
 
-=head2 update_frametype_bit
-
-=cut
-
-sub update_frametype_bit { shift->update_stream_id }
-
-=head2 update_stream_id
-
-=cut
-
-sub update_stream_id {
-	my $self = shift;
-	substr $self->{packet}, 0, 4, pack 'N1', (($self->is_data & 0x01) | ($self->stream_id << 1));
-	return $self;
+sub from_data {
+	my $class = shift;
+	my %args = @_;
+	my ($stream_id, $flags, $len, $len2) = unpack "N1C1n1c1", substr $args{data}, 0, 8, '';
+	$len = ($len << 8) | $len2;
+	return $class->new(
+		fin       => $flags & FLAG_FIN,
+		stream_id => $stream_id,
+		payload   => $args{data},
+	);
 }
 
 sub hexdump {
@@ -54,17 +40,18 @@ sub hexdump {
 		$idx += @bytes;
 	}
 }
+
 sub as_packet {
 	my $self = shift;
 	my $len = length(my $payload = $self->payload);
 	my $pkt = pack 'N1C1n1C1',
 		($self->is_control ? 0x80000000 : 0x00000000) | ($self->stream_id & 0x7FFFFFFF),
-		$self->flags,
+		($self->fin ? FLAG_FIN : 0),
 		$len >> 8,
 		$len & 0xFF;
 	$pkt .= $payload;
 	# warn "done packet: $pkt\n";
-	hexdump($pkt);
+	# hexdump($pkt);
 	return $pkt;
 }
 

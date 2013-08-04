@@ -16,6 +16,8 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'SYN_REPLY' }
+
 sub from_data {
 	my $class = shift;
 	my %args = @_;
@@ -117,7 +119,7 @@ sub update_packet {
 
 sub to_string {
 	my $self = shift;
-	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort keys %{$self->{headers}};
+	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort keys @{$self->{headers}};
 }
 
 1;

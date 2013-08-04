@@ -16,6 +16,8 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'PING' }
+
 sub id {
 	my $self = shift;
 	return $self->{id} unless @_;

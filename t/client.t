@@ -13,7 +13,7 @@ use Test::More;
 	]);
 
 	my $outgoing = '';
-	my $server = new_ok('Protocol::SPDY::Server' => [
+	my $client = new_ok('Protocol::SPDY::Client' => [
 		# Server is requesting to send some data across the wire
 		on_write => sub { $outgoing .= $_[1]; },
 	]);
@@ -21,12 +21,12 @@ use Test::More;
 	# Helper code for setting up a new stream and checking validity on the generated
 	# SYN_STREAM frame.
 	my $gen_stream = sub {
-		my $server = shift;
+		my $client = shift;
 		my $code = shift;
-		ok(my $stream = $server->create_stream, 'create a new stream');
-		is($stream->id % 2, 0, 'even-numbered stream ID');
+		ok(my $stream = $client->create_stream, 'create a new stream');
+		is($stream->id % 2, 1, 'odd-numbered stream ID');
 		ok($stream->id, 'stream ID is nonzero');
-		ok($server->has_stream($stream), 'server knows about this stream');
+		ok($client->has_stream($stream), 'server knows about this stream');
 		ok(!$stream->seen_reply, 'new stream has no reply');
 		is($outgoing, '', 'have no data yet');
 		ok($stream->start, 'send SYN');
@@ -35,13 +35,13 @@ use Test::More;
 		is($outgoing, '', 'buffer is now empty');
 		isa_ok(my $frame = $spdy->parse_frame($bytes), 'Protocol::SPDY::Frame::Control::SYN_STREAM');
 		is($frame->stream_id, $stream->id, 'stream IDs match');
-		is($frame->version, $server->version, 'our protocol version matches the frame');
+		is($frame->version, $client->version, 'our protocol version matches the frame');
 		$code->($stream, $frame) if $code;
 		return $stream;
 	};
 	subtest 'RST_STREAM' => sub {
 		note 'Start with a new stream request and check generated packet + state';
-		my $stream = $gen_stream->($server);
+		my $stream = $gen_stream->($client);
 		note 'Inject a RST and verify we handle it correctly';
 		$stream->replied->on_done(sub {
 			fail("we were not expecting a reply");
@@ -51,7 +51,7 @@ use Test::More;
 		})->on_fail(sub {
 			is(shift, "REFUSED_STREAM", "rejected with correct error message");
 		});
-		$server->on_read(
+		$client->on_read(
 			$spdy->control_frame_bytes(RST_STREAM => [
 				status    => 'REFUSED_STREAM',
 				stream_id => $stream->id,
@@ -61,7 +61,7 @@ use Test::More;
 	};
 	subtest 'SYN_REPLY' => sub {
 		note 'Start with a new stream request and verify we can accept it';
-		my $stream = $gen_stream->($server);
+		my $stream = $gen_stream->($client);
 
 		note 'Inject a reply and verify we handle it correctly';
 		$stream->replied->on_done(sub {
@@ -74,7 +74,7 @@ use Test::More;
 		})->on_fail(sub {
 			fail("accept failed - " . shift);
 		});
-		$server->on_read(
+		$client->on_read(
 			$spdy->control_frame_bytes(SYN_REPLY => [
 				stream_id => $stream->id,
 				headers => [ ],
@@ -86,7 +86,7 @@ use Test::More;
 
 	subtest 'HEADERS' => sub {
 		note 'Start with a new stream request and verify we can accept it';
-		my $stream = $gen_stream->($server);
+		my $stream = $gen_stream->($client);
 
 		note 'Inject a reply and verify we handle it correctly';
 		$stream->replied->on_done(sub {
@@ -95,7 +95,7 @@ use Test::More;
 				pass("seen headers");
 				is($stream->received_header('some-header'), 'some-value', 'have expected header value');
 			});
-			$server->on_read(
+			$client->on_read(
 				$spdy->control_frame_bytes(HEADERS => [
 					stream_id => $stream->id,
 					headers => [
@@ -111,7 +111,7 @@ use Test::More;
 		})->on_fail(sub {
 			fail("accept failed - " . shift);
 		});
-		$server->on_read(
+		$client->on_read(
 			$spdy->control_frame_bytes(SYN_REPLY => [
 				stream_id => $stream->id,
 				headers => [ ],
@@ -123,7 +123,7 @@ use Test::More;
 
 	subtest 'send data' => sub {
 		note 'Start with a new stream request and verify we can accept it';
-		my $stream = $gen_stream->($server);
+		my $stream = $gen_stream->($client);
 
 		note 'Send data on the stream';
 		$stream->replied->on_done(sub {
@@ -146,7 +146,7 @@ use Test::More;
 		}
 
 		note 'Inject a reply and verify we handle it correctly';
-		$server->on_read(
+		$client->on_read(
 			$spdy->control_frame_bytes(SYN_REPLY => [
 				stream_id => $stream->id,
 				headers => [ ],

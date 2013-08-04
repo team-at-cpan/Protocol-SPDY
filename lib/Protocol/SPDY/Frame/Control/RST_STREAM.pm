@@ -16,6 +16,8 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'RST_STREAM' }
+
 sub status_code {
 	my $self = shift;
 	return $self->{status_code} unless @_;
@@ -84,6 +86,7 @@ sub new {
 	my $self = $class->SUPER::new(%args);
 	$self->{flags} = $flags;
 	$self->{stream_id} = $stream_id;
+	$self->{status_code} = $args{status_code} // RST_STATUS_CODE_BY_NAME->{$args{status}};
 	return $self;
 }
 
@@ -98,7 +101,7 @@ Returns the packet as a byte string.
 sub as_packet {
 	my $self = shift;
 	my $zlib = shift;
-	my $payload = pack 'N1N1', $self->stream_id & 0x7FFFFFFF, $self->id;
+	my $payload = pack 'N1N1', $self->stream_id & 0x7FFFFFFF, $self->status_code;
 	return $self->SUPER::as_packet(
 		payload => $payload,
 	);

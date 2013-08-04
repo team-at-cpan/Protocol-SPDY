@@ -16,6 +16,8 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'CREDENTIAL' }
+
 sub setting { $_[0]->{settings}{$_[1]} }
 
 sub from_data {

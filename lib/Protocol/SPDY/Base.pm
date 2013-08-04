@@ -38,7 +38,11 @@ If we want to close, send a GOAWAY message first.
 
 =cut
 
-sub request_close { shift->goaway('OK') }
+sub request_close {
+	my $self = shift;
+	my $reason = shift || 'OK';
+	$self->goaway('OK')
+}
 
 =head2 check_version
 
@@ -59,45 +63,6 @@ sub check_version {
 		return 0;
 	}
 	return 1;
-}
-
-=head2 check_stream_id
-
-Check whether we have established this stream before allowing it to continue
-
-Returns true if it's okay, false if not.
-
-=cut
-
-sub check_stream_id {
-	my ($self, $frame) = @_;
-
-	unless(exists $self->{stream_id}{$frame->stream_id}) {
-		$self->send_frame(RST_STREAM => { code => INVALID_STREAM }) ;
-		return 0;
-	}
-
-	return 1;
-}
-
-# check for SYN_REPLY
-
-=head2 create_stream
-
-Create a stream.
-
-Returns the stream ID, or 0 if we can't create any more on this connection.
-
-=cut
-
-sub create_stream {
-	my ($self, %args) = @_;
-	my $id = $self->next_stream_id or return 0;
-	$self->send_frame(SYN_STREAM => {
-		stream_id => $id,
-		unidirectional => $args{unidirectional} ? 1 : 0,
-	});
-	return $id;
 }
 
 =head2 next_stream_id
@@ -179,20 +144,65 @@ sub packet_response {
 	$hdr{version} = $args{version} // 'HTTP/1.1';
 }
 
-sub parse_response {
-	my ($self, $pkt) = @_;
-
-	my $hdr = $self->extract_headers_from_packet($pkt);
-	unless($hdr->{status}) {
-		$self->send_frame(RST_STREAM => { error => PROTOCOL_ERROR });
-		return $self;
-	}
-}
-
 sub queue_frame {
 	my $self = shift;
 	my $frame = shift;
 	$self->write($frame->as_packet($self->zlib));
+}
+
+sub on_read {
+	my $self = shift;
+	$self->{input_buffer} .= shift;
+	while(defined(my $bytes = $self->extract_frame(\($self->{input_buffer})))) {
+		my $frame = $self->parse_frame($bytes);
+		$self->dispatch_frame($frame);
+
+#		# If this frame is attached to a 
+#		if(my $m = $frame->can('stream_id')) {
+#			my $stream_id = $m->($frame);
+#			$self->stream($stream_id)->process($frame);
+#		} else {
+#			
+#		}
+	}
+}
+
+sub dispatch_frame {
+	my $self = shift;
+	my $frame = shift;
+	# If we already have a stream for this frame, it probably
+	# knows better than we do how we should be handling it
+	if(my $stream = $self->related_stream($frame)) {
+		$stream->handle_frame($frame);
+	} else {
+		# This is either a frame without a stream ID, or we don't
+		# have that frame yet.
+		if($frame->type_name eq 'SYN_STREAM') {
+			$self->incoming_stream($frame);
+		} else {
+			die "We do not know what to do with $frame yet";
+		}
+	}
+}
+
+sub incoming_stream {
+	my $self = shift;
+	my $frame = shift;
+	my $stream = Protocol::SPDY::Stream->new_from_syn(
+		$frame,
+		connection => $self
+	);
+	$self->{streams}{$stream->id} = $stream;
+	$self;
+}
+
+sub related_stream {
+	my $self = shift;
+	my $frame = shift;
+	return undef unless my $m = $frame->can('stream_id');
+	my $stream_id = $m->($frame);
+	return undef unless my $stream = $self->stream_by_id($stream_id);
+	return $stream;
 }
 
 sub build_packet {
@@ -255,9 +265,9 @@ sub extract_frame {
 	# 2.2 Frames always have a common header which is 8 bytes in length
 	return undef unless length $$buffer >= 8;
 
-	(undef, my $len) = unpack 'N2', $$buffer;
+	(undef, my $len) = unpack 'N1N1', $$buffer;
 	$len &= 0x00FFFFFF;
-	return undef unless length $$buffer >= 8 + $len;
+	return undef unless length($$buffer) >= (8 + $len);
 	my $bytes = substr $$buffer, 0, 8 + $len, '';
 	return $bytes;
 }
@@ -273,7 +283,7 @@ sub parse_frame {
 	my $self = shift;
 	my $pkt = shift;
 	return Protocol::SPDY::Frame->parse(
-		$pkt,
+		\$pkt,
 		zlib => $self->zlib
 	);
 }
@@ -343,6 +353,44 @@ Sends credential information to the remote.
 sub credential {
 	my $self = shift;
 	die "Credential frames are not yet implemented";
+}
+
+sub version { 3 }
+
+sub last_stream_id { shift->{id} }
+
+sub next_id {
+	my $self = shift;
+	$self->{last_stream_id} ||= 0;
+	$self->{last_stream_id} += 2;
+}
+
+sub write { shift->{on_write}->(@_) }
+
+sub create_stream {
+	my ($self, %args) = @_;
+	my $stream = Protocol::SPDY::Stream->new(
+		id => $self->next_id,
+		connection => $self,
+	);
+	$self->{streams}{$stream->id} = $stream;
+	return $stream;
+}
+
+sub pending_send {
+	scalar @{ shift->{pending_send} }
+}
+
+sub has_stream {
+	my $self = shift;
+	my $stream = shift;
+	return exists $self->{streams}{$stream->id} ? 1 : 0;
+}
+
+sub stream_by_id {
+	my $self = shift;
+	my $id = shift;
+	return $self->{streams}{$id}
 }
 
 1;

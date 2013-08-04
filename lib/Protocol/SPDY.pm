@@ -20,6 +20,8 @@ Protocol::SPDY - abstract support for the SPDY protocol
 # Pull in all the required pieces
 use Protocol::SPDY::Constants ':all';
 
+use Future;
+
 # Support for deflate/gzip
 use Protocol::SPDY::Compress;
 
@@ -45,6 +47,8 @@ use Protocol::SPDY::Stream;
 # Client/server logic
 use Protocol::SPDY::Server;
 use Protocol::SPDY::Client;
+use Protocol::SPDY::Tracer;
+use Protocol::SPDY::Proxy;
 
 1;
 

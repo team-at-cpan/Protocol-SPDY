@@ -18,6 +18,8 @@ use Compress::Raw::Zlib qw(Z_OK WANT_GZIP_OR_ZLIB adler32);
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'WINDOW_UPDATE' }
+
 sub header {
 	my $self = shift;
 	my $hdr = $self->{headers}{+shift} or return undef;

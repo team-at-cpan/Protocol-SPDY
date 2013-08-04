@@ -47,6 +47,8 @@ checking ->isa(L<Protocol::SPDY::Frame::Data>) directly.
 
 sub is_data { shift->isa('Protocol::SPDY::Frame::Data') ? 1 : 0 }
 
+sub fin { shift->{fin} }
+
 =head2 new
 
 Instantiate a new frame. Typically called as a super method
@@ -119,9 +121,9 @@ Returns the type of this frame, such as SYN_STREAM, RST_STREAM etc.
 
 =cut
 
-sub type { shift->{type} }
+sub type { die 'abstract class, no type defined' }
 
-sub type_string { FRAME_TYPE_BY_ID->{shift->{type}} }
+sub type_string { FRAME_TYPE_BY_ID->{shift->type} }
 
 sub as_packet { '' }
 
@@ -136,38 +138,42 @@ sub parse {
 	my $pkt = shift;
 	# 2.2 Frames always have a common header which is 8 bytes in length
 	return undef unless length $$pkt >= 8;
+	my ($type_bit) = unpack "C1", $$pkt;
 
+	# Data frames technically have a different header structure, but the
+	# length and control-bit values are the same.
 	my ($ver, $type, $flags, $len, $len2) = unpack "n1n1c1n1c1", $$pkt;
-	$len = ($len << 8) | $len2;
-	my $control = $ver & 0x8000 ? 1 : 0;
-	$ver &= ~0x8000;
-#	say "Control: $control, ver: $ver, type: $type";
-#	say "Flags: $flags, length: $len";
 
-	# 2.2.1 Length: An unsigned 24-bit value representing the number of
-	# bytes after the length field
 	# 2.2.2 Length: An unsigned 24-bit value representing the number of
 	# bytes after the length field... It is valid to have a zero-length data
 	# frame.
+	$len = ($len << 8) | $len2;
 	return undef unless length $$pkt >= 8 + $len;
+
+	my $control = $ver & 0x8000 ? 1 : 0;
+	return Protocol::SPDY::Frame::Data->from_data(
+		data => $$pkt
+	) unless $control;
+
+	$ver &= ~0x8000;
 
 	my %args = @_;
 	# Now we know what type we have, delegate to a subclass which knows more than
 	# we do about constructing the object.
 	my $target_class = $control ? 'Protocol::SPDY::Frame::Control' : 'Protocol::SPDY::Frame::Data';
 	my $obj = $target_class->from_data(
-		zlib => $args{zlib},
-		type => $type,
+		zlib    => $args{zlib},
+		type    => $type,
 		version => $ver,
-		flags => $flags,
-		data => substr $$pkt, 8, $len
+		flags   => $flags,
+		data    => substr $$pkt, 8, $len
 	);
 	substr $$pkt, 0, 8 + $len, '';
 	$obj
 }
 
-sub version { shift->{version} }
 sub flags { shift->{flags} }
+sub version { shift->{version} }
 
 sub extract_frame {
 	my $class = shift;

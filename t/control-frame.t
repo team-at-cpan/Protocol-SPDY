@@ -68,8 +68,8 @@ double_check {
 	is($frame->stream_id, 1, 'stream_id is correct');
 	ok(!$frame->associated_stream_id, 'no associated stream_id');
 	is($frame->version, 3, 'is version 3');
-	ok(!$frame->flag_fin, 'FIN flag not set');
-	ok(!$frame->flag_uni, 'UNI flag not set');
+	ok(!$frame->fin, 'FIN flag not set');
+	ok(!$frame->uni, 'UNI flag not set');
 	is($frame->priority, 0, 'priority is 0');
 	check_headers $frame => [
 		':host'           => 'localhost:9929',
@@ -116,8 +116,8 @@ double_check {
 	isa_ok($frame, 'Protocol::SPDY::Frame::Control::SYN_REPLY');
 	is($frame->stream_id, 1, 'stream_id is correct');
 	is($frame->version, 3, 'is version 3');
-	ok(!$frame->flag_fin, 'FIN flag not set');
-	ok(!$frame->flag_uni, 'UNI flag not set');
+	ok(!$frame->fin, 'FIN flag not set');
+	ok(!$frame->uni, 'UNI flag not set');
 	check_headers $frame => [
 		':status'  => '200 OK',
 		':version' => 'HTTP/1.1',

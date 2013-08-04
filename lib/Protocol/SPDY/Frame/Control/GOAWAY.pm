@@ -16,6 +16,8 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+sub type_name { 'GOAWAY' }
+
 sub status_code {
 	my $self = shift;
 	return $self->{status_code} unless @_;

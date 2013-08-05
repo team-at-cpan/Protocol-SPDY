@@ -5,7 +5,7 @@ use warnings;
 use 5.010;
 use parent qw(Protocol::SPDY::Base Mixin::Event::Dispatch);
 
-our $VERSION = '0.100';
+our $VERSION = '0.999_001';
 
 =head1 NAME
 
@@ -20,6 +20,8 @@ Protocol::SPDY - abstract support for the SPDY protocol
 # Pull in all the required pieces
 use Protocol::SPDY::Constants ':all';
 
+# Helpers
+use curry;
 use Future;
 
 # Support for deflate/gzip
@@ -80,14 +82,16 @@ see L<#74387|https://rt.cpan.org/Ticket/Display.html?id=74387> for progress on t
 Eventually L<POE> or L<Reflex> implementations may arrive if someone more familiar
 with those frameworks takes an interest. On the server side, it should be possible
 to incorporate this as a plugin for Plack/PSGI so that any PSGI-compatible web
-application can support SPDY requests.
+application can support basic SPDY requests (features that plain HTTP don't support,
+such as server push or prioritisation may require PSGI extensions).
 
-For a simple blocking client and server implementation, see the C<examples/> directory.
+For some example client and server implementations, see the C<examples/> directory
+or the L</EXAMPLES> section below.
 
-NOTE: Primary focus is on providing server-side SPDY implementation for use with
-browsers such as Chrome and Firefox (at the time of writing, the development track
-for Firefox11 had initial SPDY support, and IE11 is also rumoured to provide SPDY/3
-support).
+Primary focus is on providing server-side SPDY implementation for use with
+browsers such as Chrome and Firefox (at the time of writing, Firefox has had
+optional support for SPDY since version 11, and IE11 is also rumoured to
+provide SPDY/3 support).
 
 =head1 IMPLEMENTATION CONSIDERATIONS
 
@@ -139,6 +143,9 @@ would typically be used for incorporating SPDY support into a server.
 =item * L<Protocol::SPDY::Client> - handle the client side of the connection. This
 could be used for making SPDY requests as a client.
 
+=item * L<Protocol::SPDY::Tracer> - if you want to check the packets that are being
+generated, try this class for basic packet-level debugging.
+
 =item * L<Protocol::SPDY::Stream> - handling for 'streams', which are somewhat
 analogous to individual HTTP requests
 
@@ -150,35 +157,24 @@ analogous to individual HTTP requests
 
 =back
 
+Each control frame type has its own class, see L<Protocol::SPDY::Frame::Control/TYPES>
+for links.
+
 =head1 EXAMPLES
-
-Simple server for static predefined content:
-
-# EXAMPLE: examples/server.pl
-
-Serve static HTML with basic server push support for HTML assets:
-
-# EXAMPLE: examples/server-push.pl
-
-Client for simple GET requests:
-
-# EXAMPLE: examples/client.pl
-
-Streaming GET:
-
-# EXAMPLE: examples/client-get.pl
-
-Streaming PUT:
-
-# EXAMPLE: examples/client-put.pl
-
-Show frames in captured traffic:
-
-# EXAMPLE: examples/dumper.pl
 
 SSL/TLS next protocol negotiation for SPDY/3 with HTTP/1.1 fallback:
 
 # EXAMPLE: examples/npn.pl
+
+Simple L<IO::Async>-based server which reports the originating request:
+
+# EXAMPLE: examples/server-async.pl
+
+L<IO::Async>-based client for simple GET requests:
+
+# EXAMPLE: examples/client-async.pl
+
+Other examples are in the C<examples/> directory.
 
 =head1 SEE ALSO
 

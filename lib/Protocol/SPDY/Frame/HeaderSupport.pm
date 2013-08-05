@@ -34,5 +34,36 @@ sub header_multi {
 	@{$self->{headers}{+shift}}
 }
 
+sub header_line {
+	my $self = shift;
+	join ',', map { $_->[0] . '=' . join ',', @{$_}[ 1 .. $#{$_} ] } @{$self->{headers}};
+}
+
+sub headers_as_hashref {
+	my $self = shift;
+	# this all seems needlessly overcomplicated
+	my %h = map {
+		$_->[0] => [ @{$_}[ 1 .. $#{$_} ] ]
+	} @{$self->{headers}};
+	\%h
+}
+
+sub headers_as_simple_hashref {
+	my $self = shift;
+	# this all seems needlessly overcomplicated
+	my %h = map {
+		$_->[0] => join ',', @{$_}[ 1 .. $#{$_} ]
+	} @{$self->{headers}};
+	\%h
+}
+
+sub header_hashref_to_arrayref {
+	my $self = shift;
+	my $hdr = shift;
+	return [
+		map {; [ $_ => split /\0/, $hdr->{$_} ] } sort keys %$hdr
+	]
+}
+
 1;
 

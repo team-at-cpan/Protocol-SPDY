@@ -1,7 +1,6 @@
 package Protocol::SPDY::Frame::Control::CREDENTIAL;
 use strict;
 use warnings;
-use 5.010;
 use parent qw(Protocol::SPDY::Frame::Control);
 
 =head1 NAME
@@ -28,7 +27,7 @@ sub from_data {
 	for my $idx (1..$count) {
 		my ($flags, $id, $id2, $v) = unpack 'C1n1C1N1', substr $args{data}, 0, 8, '';
 		$id = ($id << 8) | $id2;
-		(my $label = SETTINGS_BY_ID->{$id}) =~ s/^SETTINGS_//; 
+		(my $label = SETTINGS_BY_ID->{$id}) =~ s/^SETTINGS_//;
 		$settings{$label} = $v;
 	}
 #	use Data::Dumper;

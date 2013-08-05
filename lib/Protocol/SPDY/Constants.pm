@@ -125,14 +125,14 @@ use constant {
 	# Inform other side of previously-persisted settings
 	FLAG_SETTINGS_PERSISTED => 0x02,
 # Status codes for RST_STREAM
-	PROTOCOL_ERROR => 1,
-	INVALID_STREAM => 2,
-	REFUSED_STREAM => 3,
+	PROTOCOL_ERROR      => 1,
+	INVALID_STREAM      => 2,
+	REFUSED_STREAM      => 3,
 	UNSUPPORTED_VERSION => 4,
-	CANCEL => 5,
-	INTERNAL_ERROR => 6,
-	FLOW_CONTROL_ERROR => 7,
-# 
+	CANCEL              => 5,
+	INTERNAL_ERROR      => 6,
+	FLOW_CONTROL_ERROR  => 7,
+
 	FRAME_TYPE_BY_ID => {
 		1 => 'SYN_STREAM',
 		2 => 'SYN_REPLY',

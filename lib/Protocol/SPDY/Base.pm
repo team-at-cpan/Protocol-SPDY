@@ -1,12 +1,11 @@
 package Protocol::SPDY::Base;
 use strict;
 use warnings;
-use 5.010;
 use parent qw(Mixin::Event::Dispatch);
 
 =head1 NAME
 
-Protocol::SPDY - abstract support for the SPDY protocol
+Protocol::SPDY::Base - abstract support for the SPDY protocol
 
 =head1 DESCRIPTION
 
@@ -24,13 +23,15 @@ use Protocol::SPDY::Constants ':all';
 sub new {
 	my $class = shift;
 	bless {
-		zlib         => Protocol::SPDY::Compress->new,
-		pending_send => [ ],
+		sender_zlib   => Protocol::SPDY::Compress->new,
+		receiver_zlib => Protocol::SPDY::Compress->new,
+		pending_send  => [ ],
 		@_
 	}, $class
 }
 
-sub zlib { shift->{zlib} }
+sub sender_zlib { shift->{sender_zlib} }
+sub receiver_zlib { shift->{receiver_zlib} }
 
 =head2 request_close
 
@@ -147,7 +148,7 @@ sub packet_response {
 sub queue_frame {
 	my $self = shift;
 	my $frame = shift;
-	$self->write($frame->as_packet($self->zlib));
+	$self->write($frame->as_packet($self->sender_zlib));
 }
 
 sub on_read {
@@ -156,14 +157,6 @@ sub on_read {
 	while(defined(my $bytes = $self->extract_frame(\($self->{input_buffer})))) {
 		my $frame = $self->parse_frame($bytes);
 		$self->dispatch_frame($frame);
-
-#		# If this frame is attached to a 
-#		if(my $m = $frame->can('stream_id')) {
-#			my $stream_id = $m->($frame);
-#			$self->stream($stream_id)->process($frame);
-#		} else {
-#			
-#		}
 	}
 }
 
@@ -179,6 +172,12 @@ sub dispatch_frame {
 		# have that frame yet.
 		if($frame->type_name eq 'SYN_STREAM') {
 			$self->incoming_stream($frame);
+		} elsif($frame->type_name eq 'PING') {
+			$self->invoke_event(ping => $frame);
+			# Bounce it straight back
+			$self->queue_frame($frame);
+		} elsif($frame->type_name eq 'SETTINGS') {
+			$self->invoke_event(settings => $frame);
 		} else {
 			die "We do not know what to do with $frame yet";
 		}
@@ -193,6 +192,7 @@ sub incoming_stream {
 		connection => $self
 	);
 	$self->{streams}{$stream->id} = $stream;
+	$self->invoke_event(stream => $stream);
 	$self;
 }
 
@@ -219,35 +219,7 @@ sub handle_frame {
 	$frame->process($self);
 }
 
-sub apply_settings { say "Apply settings" }
-
-sub add_frame {
-	my $self = shift;
-	my $frame = shift;
-	say "Add new frame";
-	my $reply = 'hello!';
-	$self->queue_frame(
-		Protocol::SPDY::Frame::Control::SYN_REPLY->new(
-			flags => 0,
-			stream_id => $frame->stream_id,
-			version => 3,
-			nv => [
-				':status' => '200 OK',
-				':version' => 'HTTP/1.1',
-				'server' => 'ProtocolSPDY/0.002',
-				'content-type' => 'text/plain; charset=utf-8',
-				'content-length' => length($reply),
-			],
-		)
-	);
-	$self->queue_frame(
-		Protocol::SPDY::Frame::Data->new(
-			flags => FLAG_FIN,
-			stream_id => $frame->stream_id,
-			payload => $reply,
-		)
-	);
-}
+sub apply_settings { }
 
 =pod
 
@@ -284,7 +256,7 @@ sub parse_frame {
 	my $pkt = shift;
 	return Protocol::SPDY::Frame->parse(
 		\$pkt,
-		zlib => $self->zlib
+		zlib => $self->receiver_zlib
 	);
 }
 
@@ -365,7 +337,10 @@ sub next_id {
 	$self->{last_stream_id} += 2;
 }
 
-sub write { shift->{on_write}->(@_) }
+sub write {
+	my $self = shift;
+	$self->{on_write}->(@_)
+}
 
 sub create_stream {
 	my ($self, %args) = @_;

@@ -1,4 +1,4 @@
-#!/usr/bin/env perl 
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use Protocol::SPDY;
@@ -21,7 +21,6 @@ $spdy->create_stream(
 	});
 	$stream->on_data(sub {
 		$buffer .= shift;
-		
 		say "Data: $1" while s/^(.*)\n//;
 	})
 })->closed->on_done(sub {

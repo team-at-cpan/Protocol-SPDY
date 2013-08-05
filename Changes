@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	Development version for cpantesters prior to 1.0 release
+
 	Features:
 	* Updated for spdy/3 support.
 	* Higher-level handling for streams and client/server
@@ -8,12 +10,13 @@ Revision history for {{$dist->name}}
 	network transport
 	* State notification via futures
 	* Support for transfer windows
-	* Dropped NOOP frame (nothing seems to use it and we're
-	only supporting spdy/3+ now)
+	* Dropped NOOP frame (nothing seems to use it, as a
+	consequence we're only supporting spdy/3+ now - if
+	older versions are required please raise an RT)
 
 	Documentation:
 	* Examples for client, server and debug usage
-	* Next-protocol-negotiation is more widely available so
+	* Next-protocol-negotiation is more widely available, so
 	documented ways of using that
 
 0.001     2012-03-03 22:41:48 Europe/London

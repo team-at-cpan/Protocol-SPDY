@@ -1,7 +1,6 @@
 package Protocol::SPDY::Frame::Control::SYN_STREAM;
 use strict;
 use warnings;
-use 5.010;
 use parent qw(Protocol::SPDY::Frame::HeaderSupport Protocol::SPDY::Frame::Control);
 
 =head1 NAME
@@ -76,7 +75,7 @@ sub as_packet {
 
 sub to_string {
 	my $self = shift;
-	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort keys @{$self->{headers}};
+	$self->SUPER::to_string . ', id=' . $self->stream_id . ', ' . $self->header_line;
 }
 
 1;

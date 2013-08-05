@@ -1,7 +1,6 @@
 package Protocol::SPDY::Frame::Control::WINDOW_UPDATE;
 use strict;
 use warnings;
-use 5.010;
 use parent qw(Protocol::SPDY::Frame::Control);
 
 =head1 NAME
@@ -39,26 +38,13 @@ sub from_data {
 	$associated_stream_id &= ~0x80000000;
 	my $pri = ($slot & 0xE000) >> 13;
 	$slot &= 0xFF;
-#	say "Stream $stream_id (associated with $associated_stream_id), priority $pri, slot $slot";
 
-	my $zlib = delete $args{zlib};
-	my $out = $zlib->decompress($args{data});
-	my ($count) = unpack 'N1', substr $out, 0, 4, '';
-	my %header;
-	for my $idx (1..$count) {
-		my ($k, $v) = unpack 'N/A*N/A*', $out;
-		my @v = split /\0/, $v;
-#		say "$idx - $k: " . join ',', @v;
-		$header{$k} = \@v;
-		substr $out, 0, 8 + length($k) + length($v), '';
-	}
 	$class->new(
 		%args,
 		stream_id => $stream_id,
 		associated_stream_id => $associated_stream_id,
 		priority => $pri,
 		slot => $slot,
-		headers => \%header,
 	);
 }
 

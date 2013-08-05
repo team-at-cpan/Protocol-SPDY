@@ -100,7 +100,10 @@ use overload
 
 sub new {
 	my $class = shift;
-	my $self = bless { @_ }, $class;
+	my $self = bless {
+		@_,
+		from_us => 1,
+	}, $class;
 	Scalar::Util::weaken($self->{connection});
 	$self;
 }
@@ -110,12 +113,24 @@ sub new_from_syn {
 	my $frame = shift;
 	my %args = @_;
 	my $self = bless {
-		stream_id => $frame->id,
+		id         => $frame->stream_id,
 		connection => $args{connection},
+		from_us    => 0,
 	}, $class;
 	Scalar::Util::weaken($self->{connection});
+	$self->update_received_headers_from($frame);
 	$self;
 }
+
+sub update_received_headers_from {
+	my $self = shift;
+	my $frame = shift;
+	my $hdr = $frame->headers_as_simple_hashref;
+	$self->{received_headers}{$_} = $hdr->{$_} for keys %$hdr;
+	$self
+}
+
+sub from_us { shift->{from_us} ? 1 : 0 }
 
 sub id { shift->{id} }
 
@@ -151,7 +166,8 @@ sub handle_frame {
 	} elsif($frame->type_name eq 'WINDOW_UPDATE') {
 		die "we have a window update";
 	} elsif($frame->type_name eq 'RST_STREAM') {
-		$self->accepted->fail($frame->status_code_as_text) unless $self->replied->is_ready;
+		return $self->accepted->fail($frame->status_code_as_text) if $self->from_us;
+		$self->closed->fail($frame->status_code_as_text);
 	} elsif($frame->type_name eq 'SYN_REPLY') {
 		die "SYN_REPLY on a stream which has already been refused or replied" if $self->accepted->is_ready;
 		$self->accepted->done;
@@ -189,6 +205,17 @@ Sends a reply to the stream instantiation request.
 
 sub reply {
 	my $self = shift;
+	my %args = @_;
+	my $flags = 0;
+	$flags |= FLAG_FIN if $args{fin};
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Control::SYN_REPLY->new(
+			stream_id => $self->id,
+			version   => $self->version,
+			flags     => $flags,
+			headers   => $args{headers},
+		)
+	);
 }
 
 =head2 reset
@@ -199,6 +226,13 @@ Sends a reset request for this frame.
 
 sub reset {
 	my $self = shift;
+	my $status = shift;
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Control::RST_STREAM->new(
+			stream_id => $self->id,
+			status    => $status,
+		)
+	);
 }
 
 =head2 headers
@@ -229,10 +263,13 @@ Sends a data packet.
 
 sub send_data {
 	my $self = shift;
+	my $data = shift;
+	my %args = @_;
 	$self->queue_frame(
 		Protocol::SPDY::Frame::Data->new(
+			%args,
 			stream_id => $self->id,
-			payload   => shift,
+			payload   => $data,
 		)
 	);
 	$self
@@ -279,11 +316,19 @@ sub transfer_window { shift->{transfer_window} }
 The following L<Future>-returning methods are available. Attach events using
 C<on_done>, C<on_fail> or C<on_cancel> or helpers such as C<then> as usual:
 
- $stream->reply->then(sub {
+ $stream->replied->then(sub {
    # This also returns a Future, allowing chaining
    $stream->send_data('...')
  })->on_fail(sub {
    die 'here';
+ });
+
+or from the server side:
+
+ $stream->closed->then(sub {
+   # cleanup here after the stream goes away
+ })->on_fail(sub {
+   die "Our stream was reset from the other side: " . shift;
  });
 
 =cut

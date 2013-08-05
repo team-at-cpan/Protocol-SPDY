@@ -40,7 +40,7 @@ sub control_frame_bytes {
 	Protocol::SPDY::Frame::Control->find_class_for_type($type)->new(
 		version => $self->version,
 		@$args,
-	)->as_packet($self->zlib)
+	)->as_packet($self->sender_zlib)
 }
 
 1;

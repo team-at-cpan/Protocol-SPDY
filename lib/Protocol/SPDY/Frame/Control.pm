@@ -1,7 +1,6 @@
 package Protocol::SPDY::Frame::Control;
 use strict;
 use warnings;
-use 5.010;
 use parent qw(Protocol::SPDY::Frame);
 
 =head1 NAME
@@ -15,6 +14,30 @@ L<Protocol::SPDY> object.
 
 Subclass of L<Protocol::SPDY::Frame>. See also L<Protocol::SPDY::Frame::Data>.
 
+=head2 TYPES
+
+The following control frame types are known:
+
+=over 4
+
+=item * L<SYN_STREAM|Protocol::SPDY::Frame::Control::SYN_STREAM>
+
+=item * L<RST_STREAM|Protocol::SPDY::Frame::Control::RST_STREAM>
+
+=item * L<SYN_REPLY|Protocol::SPDY::Frame::Control::SYN_REPLY>
+
+=item * L<HEADERS|Protocol::SPDY::Frame::Control::HEADERS>
+
+=item * L<CREDENTIAL|Protocol::SPDY::Frame::Control::CREDENTIAL>
+
+=item * L<GOAWAY|Protocol::SPDY::Frame::Control::GOAWAY>
+
+=item * L<PING|Protocol::SPDY::Frame::Control::PING>
+
+=item * L<SETTINGS|Protocol::SPDY::Frame::Control::SETTINGS>
+
+=back
+
 =cut
 
 
@@ -25,17 +48,18 @@ use Protocol::SPDY::Constants ':all';
 =cut
 
 sub is_control { 1 }
+
 sub is_data { 0 }
 
-sub version { die "no version for $_[0]" unless $_[0]->{version}; shift->{version} }
+sub version {
+	die "no version for $_[0]" unless $_[0]->{version};
+	shift->{version}
+}
 
 sub type { FRAME_TYPE_BY_NAME->{ shift->type_name } }
 
-=head2 fin
-
-=cut
-
 sub uni { shift->{uni} }
+
 sub compress { shift->{compress} }
 
 sub as_packet {
@@ -52,22 +76,6 @@ sub as_packet {
 	$pkt .= $args{payload};
 	# warn "done packet: $pkt\n";
 	return $pkt;
-}
-
-sub hexdump {
-	my $idx = 0;
-	my @bytes = split //, join '', @_;
-	print "== had " . @bytes . " bytes\n";
-	while(@bytes) {
-		my @chunk = splice @bytes, 0, 16;
-		printf "%04x ", $idx;
-		printf "%02x ", ord $_ for @chunk;
-		(my $txt = join '', @chunk) =~ s/[^[:print:]]/./g;
-		print "   " x (16 - @chunk);
-		print for split //, $txt;
-		print "\n";
-		$idx += @bytes;
-	}
 }
 
 =head2 pairs_to_nv_header
@@ -96,9 +104,6 @@ sub from_data {
 	my %args = @_;
 	my $flags = $args{flags};
 	my $type = $args{type};
-#	say "Type is " . CONTROL_FRAME_TYPES->{$type};
-#	say "* FIN" if $flags & FLAG_FIN;
-#	say "* UNIDIRECTIONAL" if $flags & FLAG_UNIDIRECTIONAL;
 	my $target_class = $class->find_class_for_type($type);
 	return $target_class->from_data(%args);
 }
@@ -107,6 +112,7 @@ sub to_string {
 	my $self = shift;
 	$self->SUPER::to_string . ', control';
 }
+
 1;
 
 __END__
@@ -133,7 +139,6 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
-
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
 
 

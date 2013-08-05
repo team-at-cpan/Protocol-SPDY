@@ -1,7 +1,6 @@
 package Protocol::SPDY::Frame::Control::RST_STREAM;
 use strict;
 use warnings;
-use 5.010;
 use parent qw(Protocol::SPDY::Frame::Control);
 
 =head1 NAME

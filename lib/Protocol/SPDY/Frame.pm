@@ -1,7 +1,6 @@
 package Protocol::SPDY::Frame;
 use strict;
 use warnings;
-use 5.010;
 
 =head1 NAME
 
@@ -166,6 +165,7 @@ sub parse {
 		type    => $type,
 		version => $ver,
 		flags   => $flags,
+		length  => $len,
 		data    => substr $$pkt, 8, $len
 	);
 	substr $$pkt, 0, 8 + $len, '';

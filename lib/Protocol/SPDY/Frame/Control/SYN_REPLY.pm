@@ -1,7 +1,6 @@
 package Protocol::SPDY::Frame::Control::SYN_REPLY;
 use strict;
 use warnings;
-use 5.010;
 use parent qw(Protocol::SPDY::Frame::HeaderSupport Protocol::SPDY::Frame::Control);
 
 =head1 NAME
@@ -17,6 +16,13 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 use Protocol::SPDY::Constants ':all';
 
 sub type_name { 'SYN_REPLY' }
+
+sub new {
+	my $class = shift;
+	my %args = @_;
+	$args{headers} = $class->header_hashref_to_arrayref($args{headers}) if (ref($args{headers}) || '') eq 'HASH';
+	$class->SUPER::new(%args)
+}
 
 sub from_data {
 	my $class = shift;

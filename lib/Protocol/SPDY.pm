@@ -3,7 +3,6 @@ package Protocol::SPDY;
 use strict;
 use warnings;
 use 5.010;
-use parent qw(Protocol::SPDY::Base Mixin::Event::Dispatch);
 
 our $VERSION = '0.999_001';
 

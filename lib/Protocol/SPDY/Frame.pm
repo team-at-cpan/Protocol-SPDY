@@ -142,8 +142,9 @@ sub parse {
 		zlib    => $args{zlib},
 		type    => $type,
 		version => $ver,
-		flags   => $flags,
 		length  => $len,
+		fin     => $flags & FLAG_FIN ? 1 : 0,
+		uni     => $flags & FLAG_UNI ? 1 : 0,
 		data    => substr $$pkt, 8, $len
 	);
 	substr $$pkt, 0, 8 + $len, '';
@@ -201,7 +202,7 @@ String representation of this frame, for debugging.
 
 sub to_string {
 	my $self = shift;
-	'SPDY:' . $self->type_string
+	'SPDY:' . $self->type_string . ($self->fin ? ' (FIN)' : '')
 }
 
 1;
@@ -230,7 +231,5 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
-
-
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
 

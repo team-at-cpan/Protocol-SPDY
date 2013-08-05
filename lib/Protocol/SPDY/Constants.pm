@@ -19,11 +19,11 @@ Provides some constants.
 
 use constant {
 	# Flag indicating whether this is the final packet in the stream
-	FLAG_FIN => 0x01,
+	FLAG_FIN      => 0x01,
 	# Whether compression is enabled
 	FLAG_COMPRESS => 0x02,
 	# Unidirectional (section 2.3.6)
-	FLAG_UNI	=> 0x02,
+	FLAG_UNI	  => 0x02,
 	# Number of bytes in the header (common between control and data frames)
 	HEADER_LENGTH => 8,
 	# The spec requires seeding our zlib instance with a specific dictionary to get

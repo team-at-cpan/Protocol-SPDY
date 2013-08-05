@@ -23,6 +23,19 @@ The string type for this frame ('SYN_STREAM').
 
 sub type_name { 'SYN_STREAM' }
 
+=head2 new
+
+Instantiate.
+
+=cut
+
+sub new {
+	my $class = shift;
+	my %args = @_;
+	$args{headers} = $class->header_hashref_to_arrayref($args{headers}) if (ref($args{headers}) || '') eq 'HASH';
+	$class->SUPER::new(%args)
+}
+
 =head2 slot
 
 Which credential slot we're using (unimplemented).

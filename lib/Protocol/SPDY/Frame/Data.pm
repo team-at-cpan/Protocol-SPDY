@@ -73,6 +73,24 @@ sub as_packet {
 	return $pkt;
 }
 
+=head2 type_string
+
+Returns 'data' - data frames don't have a type field, so we pick a value
+that isn't going to conflict with any control frame types.
+
+=cut
+
+sub type_string { 'data' }
+
+=head2 type_name
+
+Returns 'data' - data frames don't have a type field, so we pick a value
+that isn't going to conflict with any control frame types.
+
+=cut
+
+sub type_name { 'data' }
+
 1;
 
 __END__

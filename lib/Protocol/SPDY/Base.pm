@@ -16,7 +16,7 @@ SPDY handling.
 
 use Protocol::SPDY::Constants ':all';
 
-use List::UtilsBy qw(nsort_by);
+use List::UtilsBy qw(extract_by);
 
 =head1 METHODS
 
@@ -136,7 +136,7 @@ sub on_read {
 	$self->{input_buffer} .= shift;
 	my @frames;
 	while(defined(my $bytes = $self->extract_frame(\($self->{input_buffer})))) {
-		push @frames, $self->parse_frame($bytes);
+		push @frames, my $f = $self->parse_frame($bytes);
 	}
 	return $self unless @frames;
 	$self->dispatch_frame($_) for $self->prioritise_incoming_frames(@frames);
@@ -154,8 +154,9 @@ Does not yet support stream priority.
 
 sub prioritise_incoming_frames {
 	my $self = shift;
-	my @frames = shift;
-	return nsort_by { $_->type_name eq 'PING' ? 0 : 1 } @frames;
+	my @frames = @_;
+	my @ping = extract_by { $_->type_name eq 'PING' } @frames;
+	return @ping, @frames;
 }
 
 =head2 dispatch_frame

@@ -62,8 +62,7 @@ Provides an implementation for the SPDY protocol at an abstract (in-memory buffe
 This module will B<not> initiate or receive any network connections on its own.
 
 It is intended for use as a base on which to build web server/client implementations
-using whichever transport mechanism is appropriate, and should support blocking or
-nonblocking behaviour as required.
+using whichever transport mechanism is appropriate.
 
 This means that if you want to add SPDY client or server support to your code, you'll
 need a transport as well:
@@ -78,26 +77,33 @@ see L<#74387|https://rt.cpan.org/Ticket/Display.html?id=74387> for progress on t
 
 =back
 
-Eventually L<POE> or L<Reflex> implementations may arrive if someone more familiar
-with those frameworks takes an interest. On the server side, it should be possible
-to incorporate this as a plugin for Plack/PSGI so that any PSGI-compatible web
-application can support basic SPDY requests (features that plain HTTP don't support,
-such as server push or prioritisation may require PSGI extensions).
+Eventually L<POE> or L<Reflex> implementations may arrive, if someone more familiar
+with those frameworks takes an interest.
 
-For some example client and server implementations, see the C<examples/> directory
-or the L</EXAMPLES> section below.
+
+On the server side, it should be possible to incorporate this as a plugin for
+Plack/PSGI so that any PSGI-compatible web application can support basic SPDY
+requests. Features that plain HTTP doesn't support, such as server push or
+prioritisation, may require PSGI extensions. Although I don't use PSGI myself,
+I'd be happy to help add any necessary support required to allow these extra
+features - the L<Web::Async> framework may be helpful as a working example for
+SPDY-specific features.
 
 Primary focus is on providing server-side SPDY implementation for use with
 browsers such as Chrome and Firefox (at the time of writing, Firefox has had
 optional support for SPDY since version 11, and IE11 is also rumoured to
-provide SPDY/3 support).
+provide SPDY/3 support). The Android browser has supported SPDY for some time (since
+Android 3.0+?).
+
+See the L</EXAMPLES> section below for some basic code examples.
 
 =head1 IMPLEMENTATION CONSIDERATIONS
 
 The information in L<http://www.chromium.org/spdy> may be useful when implementing clients
 (browsers).
 
-This abstract protocol class requires a transport implementation.
+See the L</COMPONENTS> section for links to the main classes you'll be needing
+if you're writing your own transport.
 
 =head2 UPGRADING EXISTING HTTP OR HTTPS CONNECTIONS
 
@@ -125,10 +131,26 @@ This information could also be provided via the Alternate-Protocol header:
 
 =head2 PACKET SEQUENCE
 
-Typically both sides would send a SETTINGS packet first.
+=over 4
 
-This would be followed by SYN_STREAM from the client corresponding to the
+=item * Typically both sides would send a SETTINGS packet first.
+
+=item * This would be followed by SYN_STREAM from the client corresponding to the
 initial HTTP request.
+
+=item * The server responds with SYN_REPLY containing the HTTP response headers.
+
+=item * Either side may send data frames for active streams until the FIN
+flag is set on a packet for that stream
+
+=item * A request is complete when the stream on both sides is in FIN state.
+
+=item * Further requests may be issued using SYN_STREAM
+
+=item * If some time has passed since the last packet from the other side, a PING frame
+may be sent to verify that the connection is still active.
+
+=back
 
 =head1 COMPONENTS
 
@@ -178,10 +200,12 @@ Other examples are in the C<examples/> directory.
 =head1 SEE ALSO
 
 Since the protocol is still in flux, it may be advisable to keep an eye on
-L<http://www.chromium.org/spdy>.
+L<http://www.chromium.org/spdy>. The preliminary work on HTTP/2.0 protocol
+was at the time of writing also based on SPDY/3, so the IETF page is likely
+to be a useful resource: L<http://tools.ietf.org/wg/httpbis/>.
 
 The only other implementation I've seen so far for Perl is L<Net::SPDY>, which
-at the time of writing is a development release but does come with a client and
+as of 0.01_5 is still a development release but does come with a client and
 server example which should make it easy to get started with.
 
 =head1 AUTHOR

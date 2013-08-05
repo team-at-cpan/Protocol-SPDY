@@ -47,7 +47,7 @@ $loop->SSL_listen(
 				$stream->closed->on_fail(sub {
 					warn "We had an error: " . shift;
 				});
-				my $hdr = $stream->received_headers;
+				my $hdr = { %{$stream->received_headers} };
 				my $req = HTTP::Request->new(
 					(delete $hdr->{':method'}) => (delete $hdr->{':path'})
 				);

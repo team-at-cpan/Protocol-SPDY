@@ -291,14 +291,14 @@ Generates a SYN_STREAM frame for starting this stream.
 sub syn_frame {
 	my $self = shift;
 	my %args = @_;
+	$args{headers} ||= [];
 	Protocol::SPDY::Frame::Control::SYN_STREAM->new(
+		%args,
 		associated_stream_id => $self->associated_stream_id,
 		stream_id            => $self->id,
 		priority             => $self->priority,
 		slot                 => 0,
 		version              => $self->version,
-		flags                => 0,
-		headers              => $args{headers} || [],
 	);
 }
 
@@ -345,14 +345,13 @@ Attempt to handle the given frame.
 sub handle_frame {
 	my $self = shift;
 	my $frame = shift;
-	$self->{remote_fin} = 1 ;
 	if($frame->fin) {
 		die "Duplicate FIN received" if $self->remote_fin;
 		$self->remote_finished->done;
 	}
 
 	if($frame->is_data) {
-		$self->invoke_event(data => $frame);
+		$self->invoke_event(data => $frame->payload);
 	} elsif($frame->type_name eq 'WINDOW_UPDATE') {
 		die "we have a window update";
 	} elsif($frame->type_name eq 'RST_STREAM') {
@@ -360,13 +359,12 @@ sub handle_frame {
 		$self->closed->fail($frame->status_code_as_text);
 	} elsif($frame->type_name eq 'SYN_REPLY') {
 		die "SYN_REPLY on a stream which has already been refused or replied" if $self->accepted->is_ready;
+		$self->update_received_headers_from($frame);
 		$self->accepted->done;
 		$self->replied->done;
 	} elsif($frame->type_name eq 'HEADERS') {
 		die "HEADERS on a stream which has not yet seen a reply" unless $self->accepted->is_ready;
-		foreach my $k ($frame->header_list) {
-			$self->{received_headers}->{$k} = $frame->header($k);
-		}
+		$self->update_received_headers_from($frame);
 		$self->invoke_event(headers => $frame);
 	} elsif($frame->type_name eq 'SYN_STREAM') {
 		die "SYN_STREAM on an existing stream";
@@ -415,8 +413,8 @@ sub reply {
 		Protocol::SPDY::Frame::Control::SYN_REPLY->new(
 			stream_id => $self->id,
 			version   => $self->version,
-			flags     => $flags,
 			headers   => $args{headers},
+			fin       => ($args{fin} ? 1 : 0),
 		)
 	);
 }

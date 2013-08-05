@@ -1,6 +1,8 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
+use 5.010;
+#use Carp::Always;
 
 # Usage: perl client-async.pl https://spdy-test.perlsite.co.uk/index.html
 
@@ -13,104 +15,30 @@ use IO::Socket::SSL qw(SSL_VERIFY_NONE);
 use IO::Async::Loop;
 use IO::Async::SSL;
 use IO::Async::Stream;
+use URI;
 
 my $loop = IO::Async::Loop->new;
-$loop->SSL_listen(
+my $uri = URI->new(shift @ARGV or die 'no URL?');
+warn $uri->host;
+$loop->SSL_connect(
 	addr => {
 		family   => "inet",
 		socktype => "stream",
-		port     => $ENV{PROTOCOL_SPDY_LISTEN_PORT} || 0,
+		host     => $uri->host,
+		port     => $uri->port || 'https',
 	},
 	SSL_npn_protocols => [
 		'spdy/3',
-		# Normally you'd also list HTTP here,
-		# but since we're only supporting SPDY
-		# in this example, we don't do that.
-		# 'http1.1'
 	],
-	SSL_cert_file => 'certs/examples.crt',
-	SSL_key_file => 'certs/examples.key',
-	SSL_ca_path => 'certs/ProtocolSPDYCA',
-	on_accept => sub {
+	SSL_verify_mode => SSL_VERIFY_NONE,
+	on_connected => sub {
 		my $sock = shift;
-		print "Client connecting from " . join(':', $sock->peerhost, $sock->peerport) . ", we're using " . $sock->next_proto_negotiated . "\n";
+		print "Connected to " . join(':', $sock->peerhost, $sock->peerport) . ", we're using " . $sock->next_proto_negotiated . "\n";
 		die "Wrong protocol" unless $sock->next_proto_negotiated eq 'spdy/3';
 		my $stream = IO::Async::Stream->new(handle => $sock);
-		my $spdy = Protocol::SPDY::Server->new;
+		my $spdy = Protocol::SPDY::Client->new;
 		# Pass all writes directly to the stream
 		$spdy->{on_write} = $stream->curry::write;
-		$spdy->subscribe_to_event(
-			stream => sub {
-				my $ev = shift;
-				my $stream = shift;
-				print "We have a new stream:\n";
-				$stream->closed->on_fail(sub {
-					warn "We had an error: " . shift;
-				});
-				my $hdr = $stream->received_headers;
-				my $req = HTTP::Request->new(
-					(delete $hdr->{':method'}) => (delete $hdr->{':path'})
-				);
-				$req->protocol(delete $hdr->{':version'});
-				my $scheme = delete $hdr->{':scheme'};
-				my $host = delete $hdr->{':host'};
-				$req->header('Host' => $host);
-				$req->header($_ => delete $hdr->{$_}) for keys %$hdr;
-				print $req->as_string("\n");
-
-				# You'd probably raise a 400 response here, but it's a conveniently
-				# easy way to demonstrate our reset handling
-				return $stream->reset(
-					'REFUSED'
-				) if $req->uri->path =~ qr{^/reset/refused};
-
-				my $response = HTTP::Response->new(
-					200 => 'OK', [
-						'Content-Type' => 'text/html; charset=UTF-8',
-					]
-				);
-				$response->protocol($req->protocol);
-
-				my $input = $req->as_string("\n");
-				my $output = <<"HTML";
-<!DOCTYPE html>
-<html>
- <head>
-  <title>Example SPDY server</title>
-  <style type="text/css">
-* { margin: 0; padding: 0 }
-h1 { color: #ccc; background: #333 }
-p { padding: 0.5em }
-  </style>
- </head>
- <body>
-  <h1>Protocol::SPDY example server</h1>
-  <p>
-   Your request was parsed as:
-  </p>
-  <pre>
-$input
-  </pre>
- </body>
-</html>
-HTML
-				# At the protocol level we only care about bytes. Make sure that's all we have.
-				$output = Encode::encode('UTF-8' => $output);
-				$response->header('Content-Length' => length $output);
-				my %hdr = map {; lc($_) => ''.$response->header($_) } $response->header_field_names;
-				delete @hdr{qw(connection keep-alive proxy-connection transfer-encoding)};
-				$stream->reply(
-					fin => 0,
-					headers => {
-						%hdr,
-						':status'  => join(' ', $response->code, $response->message),
-						':version' => $response->protocol,
-					}
-				);
-				$stream->send_data(substr $output, 0, 1024, '') while length $output;
-				$stream->send_data('', fin => 1);
-			}
-		);
 		$stream->configure(
 			on_read => sub {
 				my ( $self, $buffref, $eof ) = @_;
@@ -123,6 +51,38 @@ HTML
 				}
 
 				return 0;
+			}
+		);
+		my $req = $spdy->create_stream(
+		);
+		$req->subscribe_to_event(data => sub {
+			my ($ev, $data) = @_;
+			say $data;
+		});
+		$req->replied->on_done(sub {
+			my $hdr = $req->received_headers;
+			say join ' ', map delete $hdr->{$_}, qw(:version :status);
+			for(sort keys %$hdr) {
+				# Camel-Case the header names
+				(my $k = $_) =~ s{(?:^|-)\K(\w)}{\U$1}g;
+				say join ': ', $k, $hdr->{$_};
+			}
+			say '';
+			# We may get extra headers, stash them until after data
+			$req->subscribe_to_event(headers => sub {
+				my ($ev, $headers) = @_;
+				# ...
+			});
+		});
+		$req->remote_finished->on_done(sub { $loop->stop });
+		$req->start(
+			fin     => 1,
+			headers => {
+				':method'  => 'GET',
+				':path'    => '/' . $uri->path,
+				':scheme'  => $uri->scheme,
+				':host'    => $uri->host . ($uri->port ? ':' . $uri->port : ''),
+				':version' => 'HTTP/1.1',
 			}
 		);
 		$loop->add($stream);

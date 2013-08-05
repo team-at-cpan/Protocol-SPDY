@@ -86,6 +86,69 @@ size
   * Calculate total from all new data frames
   * Send window update if required
 
+=head2 Error handling
+
+There are two main types of error case: stream-level errors, which can
+be handled by closing that stream, or connection-level errors, where
+things have gone so badly wrong that the entire connection needs to be
+dropped.
+
+Stream-level errors are handled by RST_STREAM frames.
+
+Connection-level errors are typically cases where framing has gone out
+of sync (compression failures, incorrect packet lengths, etc.) and
+these are handled by sending a single GOAWAY frame then closing the
+connection immediately.
+
+=head2 Server push support
+
+The server can push additional streams to the client to avoid the unnecessary
+extra SYN_STREAM request/response cycle for additional resources that the server
+knows will be needed to fulfull the main request.
+
+A server push response is requested with L</push_stream>:
+
+ try {
+   my $assoc = $stream->push_stream;
+   $assoc->closed->on_ready(sub {
+     # Associated stream completed or failed - either way,
+	 # we can now start sending the main data
+	 $stream->send_data($html);
+   })->on_fail(sub {
+     # The other side might already have the data or not
+	 # support server push, so don't panic if our associated
+	 # stream closes before we expected it
+     warn "Associated stream was rejected";
+   });
+ } catch {
+   # We'll get an exception if we tried to push data on a stream
+   # we'd already marked as FIN on our side.
+   warn "Our code is broken";
+   $stream->connection->goaway;
+ };
+
+You can then send that stream using L</start> as usual:
+
+ $assoc->start(
+   headers => {
+     ':scheme' => 'https',
+     ':host'   => 'localhost',
+     ':path'   => '/image/logo.png',
+   }
+ );
+
+Note that associated streams can only be initiated before the
+main stream is in FIN state.
+
+Generally it's safest to create all the associated streams immediately
+after the initial SYN_STREAM request has been received from the client,
+since that will pass enough information back that the client will know
+how to start arranging the responses for caching. You should then be
+able to send data on the streams as and when it becomes available.
+
+Attempting to initiate server-pushed streams after sending content is
+liable to hit race conditions - see section 3.3.1 in the SPDY spec.
+
 =cut
 
 use Protocol::SPDY::Constants ':all';
@@ -96,7 +159,7 @@ use overload
 	bool => sub { 1 },
 	fallback => 1;
 
-=head2 METHODS
+=head1 METHODS
 
 =cut
 
@@ -119,11 +182,16 @@ managing this side of the connection
 
 sub new {
 	my $class = shift;
+	my %args = @_;
+	my $fin = delete $args{fin};
+	my $uni = delete $args{uni};
 	my $self = bless {
-		@_,
+		%args,
 		from_us => 1,
 	}, $class;
 	Scalar::Util::weaken($self->{connection});
+	$self->finished->done if $fin;
+	$self->remote_finished->done if $uni;
 	$self;
 }
 
@@ -146,6 +214,9 @@ sub new_from_syn {
 	}, $class;
 	Scalar::Util::weaken($self->{connection});
 	$self->update_received_headers_from($frame);
+
+	# Check whether we were expecting any more data
+	$self->remote_finished->done if $frame->uni || $frame->fin;
 	$self;
 }
 
@@ -219,13 +290,15 @@ Generates a SYN_STREAM frame for starting this stream.
 
 sub syn_frame {
 	my $self = shift;
+	my %args = @_;
 	Protocol::SPDY::Frame::Control::SYN_STREAM->new(
-		stream_id => $self->id,
-		priority  => $self->priority,
-		slot      => 0,
-		version   => $self->version,
-		flags     => 0,
-		headers   => [],
+		associated_stream_id => $self->associated_stream_id,
+		stream_id            => $self->id,
+		priority             => $self->priority,
+		slot                 => 0,
+		version              => $self->version,
+		flags                => 0,
+		headers              => $args{headers} || [],
 	);
 }
 
@@ -272,6 +345,12 @@ Attempt to handle the given frame.
 sub handle_frame {
 	my $self = shift;
 	my $frame = shift;
+	$self->{remote_fin} = 1 ;
+	if($frame->fin) {
+		die "Duplicate FIN received" if $self->remote_fin;
+		$self->remote_finished->done;
+	}
+
 	if($frame->is_data) {
 		$self->invoke_event(data => $frame);
 	} elsif($frame->type_name eq 'WINDOW_UPDATE') {
@@ -305,6 +384,7 @@ Asks our connection object to queue the given frame instance.
 sub queue_frame {
 	my $self = shift;
 	my $frame = shift;
+	$self->finished->done if $frame->fin;
 	$self->connection->queue_frame($frame);
 }
 
@@ -316,7 +396,7 @@ Start this stream off by sending a SYN_STREAM frame.
 
 sub start {
 	my $self = shift;
-	$self->queue_frame($self->syn_frame);
+	$self->queue_frame($self->syn_frame(@_));
 	$self
 }
 
@@ -355,6 +435,26 @@ sub reset {
 			stream_id => $self->id,
 			status    => $status,
 		)
+	);
+}
+
+=head2 push_stream
+
+Creates and returns a new C<server push> stream.
+
+Note that a pushed stream starts with a B< SYN_STREAM > frame but with
+headers that are usually found in a B< SYN_REPLY > frame.
+
+=cut
+
+sub push_stream {
+	my $self = shift;
+	die "This stream is in FIN state" if $self->finished->is_ready;
+
+	$self->connection->create_stream(
+		uni                  => 1,
+		fin                  => 0,
+		associated_stream_id => $self->id,
 	);
 }
 
@@ -398,9 +498,30 @@ sub send_data {
 	$self
 }
 
-=head2 METHODS - Accessors
+=head1 METHODS - Accessors
 
 These provide read-only access to various pieces of state information.
+
+=head2 associated_stream_id
+
+Which stream we're associated to. Returns 0 if there isn't one.
+
+=cut
+
+sub associated_stream_id { shift->{associated_stream_id} || 0 }
+
+=head2 associated_stream
+
+The L<Protocol::SPDY::Stream> for the associated stream
+(the "parent" stream to this one, if it exists). Returns undef
+if not found.
+
+=cut
+
+sub associated_stream {
+	my $self = shift;
+	$self->connection->stream_by_id($self->associated_stream_id)
+}
 
 =head2 remote_fin
 
@@ -445,7 +566,7 @@ sub to_string {
 	'SPDY:Stream ID ' . $self->id
 }
 
-=head2 METHODS - Futures
+=head1 METHODS - Futures
 
 The following L<Future>-returning methods are available. Attach events using
 C<on_done>, C<on_fail> or C<on_cancel> or helpers such as C<then> as usual:
@@ -494,6 +615,21 @@ sub finished {
 	$self->{future_finished} ||= Future->new
 }
 
+=head2 remote_finished
+
+This frame has had all the data it's going to get from the other side,
+i.e. we're sending unidirectional data or we have seen the FIN flag on
+an incoming packet.
+
+=cut
+
+sub remote_finished {
+	my $self = shift;
+	$self->{future_remote_finished} ||= Future->new->on_done(sub {
+		$self->{remote_fin} = 1;
+	});
+}
+
 =head2 closed
 
 The stream has been closed on both sides - either through reset or "natural causes".
@@ -503,7 +639,7 @@ Might still be cancelled if the parent object disappears.
 
 sub closed {
 	my $self = shift;
-	$self->{future_closed} ||= Future->new
+	$self->{future_closed} ||= Future->needs_all($self->finished, $self->remote_finished)
 }
 
 =head2 accepted

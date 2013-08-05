@@ -377,7 +377,9 @@ Instantiate a new stream, returning the L<Protocol::SPDY::Stream> instance.
 
 sub create_stream {
 	my $self = shift;
+	my %args = @_;
 	my $stream = Protocol::SPDY::Stream->new(
+		%args,
 		id         => $self->next_stream_id,
 		connection => $self,
 		version    => $self->version,

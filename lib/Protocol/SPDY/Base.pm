@@ -16,26 +16,46 @@ SPDY handling.
 
 use Protocol::SPDY::Constants ':all';
 
+use List::UtilsBy qw(nsort_by);
+
 =head1 METHODS
+
+=cut
+
+=head2 new
+
+Instantiates a new SPDY-handling object. Applies any attributes
+passed as named parameters.
 
 =cut
 
 sub new {
 	my $class = shift;
 	bless {
-		sender_zlib   => Protocol::SPDY::Compress->new,
-		receiver_zlib => Protocol::SPDY::Compress->new,
 		pending_send  => [ ],
 		@_
 	}, $class
 }
 
-sub sender_zlib { shift->{sender_zlib} }
-sub receiver_zlib { shift->{receiver_zlib} }
+=head2 sender_zlib
+
+The compression instance used for sending data.
+
+=cut
+
+sub sender_zlib { shift->{sender_zlib} ||= Protocol::SPDY::Compress->new }
+
+=head2 receiver_zlib
+
+Compression instance used for receiving (decompressing) data.
+
+=cut
+
+sub receiver_zlib { shift->{receiver_zlib} ||= Protocol::SPDY::Compress->new }
 
 =head2 request_close
 
-If we want to close, send a GOAWAY message first.
+Issue a close request by sending a GOAWAY message.
 
 =cut
 
@@ -82,68 +102,11 @@ sub next_stream_id {
 	return 0;
 }
 
-sub packet_request {
-	my ($self, %args) = @_;
+=head2 queue_frame
 
-	my $uri = $args{uri} or die "No URI provided";
-
-	# All headers must be lowercase
-	my %hdr = map { lc($_) => $args{header}{$_} } keys %{$args{header}};
-
-	# These would be ignored anyway, drop 'em if we have 'em to save
-	# some bandwidth
-	delete $hdr{qw(connection keep-alive host)};
-
-	# Apply method directly
-	$hdr{method} = delete $args{method};
-
-	# Unpack the URI
-	$hdr{scheme} = $uri->scheme;
-	$hdr{url} = $uri->path_query;
-	$hdr{version} = $args{version} || 'HTTP/1.1';
-}
-
-=head2 parse_request
-
-Convert an incoming HTTP-over-SPDY packet into a data structure and send appropriate event(s).
+Requests sending the given C< $frame > at the earliest opportunity.
 
 =cut
-
-sub parse_request {
-	my ($self, %args) = @_;
-
-	my $uri = $args{uri} or die "No URI provided";
-
-	# All headers must be lowercase
-	my %hdr = map { lc($_) => $args{header}{$_} } keys %{$args{header}};
-
-	# These would be ignored anyway, drop 'em if we have 'em to save
-	# some bandwidth
-	delete @hdr{qw(connection keep-alive host transfer-encoding)};
-
-	# Apply method directly
-	$hdr{method} = delete $args{method};
-
-	# Unpack the URI
-	$hdr{scheme} = $uri->scheme;
-	$hdr{url} = $uri->path_query;
-	$hdr{version} = $args{version} // 'HTTP/1.1';
-}
-
-=head2 packet_response
-
-Generate a response packet.
-
-=cut
-
-sub packet_response {
-	my ($self, %args) = @_;
-	# All headers must be lowercase
-	my %hdr = map { lc($_) => $args{header}{$_} } keys %{$args{header}};
-	delete $hdr{qw(connection keep-alive)};
-	$hdr{status} = $args{status};
-	$hdr{version} = $args{version} // 'HTTP/1.1';
-}
 
 sub queue_frame {
 	my $self = shift;
@@ -151,14 +114,52 @@ sub queue_frame {
 	$self->write($frame->as_packet($self->sender_zlib));
 }
 
+=head2 on_read
+
+This is the method that an external transport would call when it has
+some data received from the other side of the SPDY connection. It
+expects to be called with a scalar containing bytes which can be
+decoded as SPDY frames; any SSL/TLS decoding should happen before
+passing data to this method.
+
+Will call L</dispatch_frame> for any valid frames that can be
+extracted from the stream.
+
+=cut
+
 sub on_read {
 	my $self = shift;
 	$self->{input_buffer} .= shift;
+	my @frames;
 	while(defined(my $bytes = $self->extract_frame(\($self->{input_buffer})))) {
-		my $frame = $self->parse_frame($bytes);
-		$self->dispatch_frame($frame);
+		push @frames, $self->parse_frame($bytes);
 	}
+	$self->dispatch_frame($_) for $self->prioritise_incoming_frames(@frames);
 }
+
+=head2 prioritise_incoming_frames
+
+Given a list of L<Protocol::SPDY::Frame> instances, returns them
+reordered so that higher-priority items such as PING are handled
+first.
+
+Does not yet support stream priority.
+
+=cut
+
+sub prioritise_incoming_frames {
+	my $self = shift;
+	my @frames = shift;
+	return nsort_by { $_->type_name eq 'PING' ? 0 : 1 } @frames;
+}
+
+=head2 dispatch_frame
+
+Dispatches the given frame to appropriate handlers - this will
+be the matching L<Protocol::SPDY::Stream> if one exists, or
+internal connection state handling for GOAWAY/SETTINGS frames.
+
+=cut
 
 sub dispatch_frame {
 	my $self = shift;
@@ -184,6 +185,12 @@ sub dispatch_frame {
 	}
 }
 
+=head2 incoming_stream
+
+Called when a new SYN_STREAM frame is received.
+
+=cut
+
 sub incoming_stream {
 	my $self = shift;
 	my $frame = shift;
@@ -196,6 +203,16 @@ sub incoming_stream {
 	$self;
 }
 
+=head2 related_stream
+
+Returns the L<Protocol::SPDY::Stream> matching the stream_id
+for this frame (if it has one).
+
+Will return undef if we have no stream yet or this frame
+does not have a stream_id.
+
+=cut
+
 sub related_stream {
 	my $self = shift;
 	my $frame = shift;
@@ -205,23 +222,7 @@ sub related_stream {
 	return $stream;
 }
 
-sub build_packet {
-	my $self = shift;
-	my ($type, $data) = @_;
-	return Protocol::SPDY::Frame::Control->new(
-		# type	=> RST_STREAM,
-	);
-}
-
-sub handle_frame {
-	my $self = shift;
-	my $frame = shift;
-	$frame->process($self);
-}
-
 sub apply_settings { }
-
-=pod
 
 =head2 extract_frame
 
@@ -327,15 +328,40 @@ sub credential {
 	die "Credential frames are not yet implemented";
 }
 
+=head2 version
+
+Returns the version supported by this instance. Currently, this is
+always 3.
+
+=cut
+
 sub version { 3 }
 
+=head2 last_stream_id
+
+The ID for the last stream we created.
+
+=cut
+
 sub last_stream_id { shift->{id} }
+
+=head2 next_id
+
+Next ID to use for creating a stream.
+
+=cut
 
 sub next_id {
 	my $self = shift;
 	$self->{last_stream_id} ||= 0;
 	$self->{last_stream_id} += 2;
 }
+
+=head2 write
+
+Calls the external code which is expected to handle writes.
+
+=cut
 
 sub write {
 	my $self = shift;
@@ -352,15 +378,34 @@ sub create_stream {
 	return $stream;
 }
 
+=head2 pending_send
+
+Returns a count of the frames that are waiting to be sent.
+
+=cut
+
 sub pending_send {
 	scalar @{ shift->{pending_send} }
 }
+
+=head2 has_stream
+
+Returns true if we have a stream matching the ID on the
+provided L<Protocol::SPDY::Stream> instance.
+
+=cut
 
 sub has_stream {
 	my $self = shift;
 	my $stream = shift;
 	return exists $self->{streams}{$stream->id} ? 1 : 0;
 }
+
+=head2 stream_by_id
+
+Returns the L<Protocol::SPDY::Stream> matching the given ID.
+
+=cut
 
 sub stream_by_id {
 	my $self = shift;

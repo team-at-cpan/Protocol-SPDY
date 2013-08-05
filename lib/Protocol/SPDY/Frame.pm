@@ -112,11 +112,10 @@ subclass, or undef on failure.
 =cut
 
 sub parse {
-	my $class = shift;
+	shift;
 	my $pkt = shift;
 	# 2.2 Frames always have a common header which is 8 bytes in length
 	return undef unless length $$pkt >= 8;
-	my ($type_bit) = unpack "C1", $$pkt;
 
 	# Data frames technically have a different header structure, but the
 	# length and control-bit values are the same.
@@ -184,7 +183,7 @@ sub extract_headers {
 	my $start_len = length $data;
 	my ($count) = unpack 'N1', substr $data, 0, 4, '';
 	my @headers;
-	for my $idx (1..$count) {
+	for (1..$count) {
 		my ($k, $v) = unpack 'N/A* N/A*', $data;
 		my @v = split /\0/, $v;
 		# Don't allow non-ASCII characters

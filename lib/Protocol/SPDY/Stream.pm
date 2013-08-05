@@ -48,9 +48,11 @@ Protocol::SPDY::Stream - single stream representation within a L<Protocol::SPDY>
  # $stream->send_data(my $f = Future->new);
  # $f->done('the data you expected');
  # If you want to cancel the stream at any time, use ->reset
- $stream->reset('CANCEL') # or STREAM_CANCEL if you've imported the constants
+ $stream->reset('CANCEL'); # or STREAM_CANCEL if you've imported the constants
  # Normally you'd indicate finished by marking a data packet as the final one:
  $stream->send_data('</html>', fin => 1);
+ # ... and an empty data packet should also be fine:
+ # $stream->send_data('', fin => 1);
 
 =head1 DESCRIPTION
 
@@ -138,6 +140,7 @@ sub new_from_syn {
 	my %args = @_;
 	my $self = bless {
 		id         => $frame->stream_id,
+		version    => $frame->version,
 		connection => $args{connection},
 		from_us    => 0,
 	}, $class;

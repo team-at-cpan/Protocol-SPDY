@@ -5,7 +5,7 @@ use parent qw(Protocol::SPDY::Frame::Control);
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::SETTINGS - connection settings information
 
 =head1 SYNOPSIS
 
@@ -15,7 +15,19 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+=head2 type_name
+
+The string type for this frame ('SETTINGS').
+
+=cut
+
 sub type_name { 'SETTINGS' }
+
+=head2 setting
+
+Look up the given setting and return the current value.
+
+=cut
 
 sub setting {
 	my $self = shift;
@@ -26,12 +38,18 @@ sub setting {
 	$v->[2]
 }
 
+=head2 from_data
+
+Instantiate from data.
+
+=cut
+
 sub from_data {
 	my $class = shift;
 	my %args = @_;
 	my ($count) = unpack "N1", substr $args{data}, 0, 4, '';
 	my @settings;
-	for my $idx (1..$count) {
+	for (1..$count) {
 		my ($flags, $id, $id2, $v) = unpack 'C1n1C1N1', substr $args{data}, 0, 8, '';
 		$id = ($id << 8) | $id2;
 		push @settings, [ $id, $flags, $v ];
@@ -42,13 +60,18 @@ sub from_data {
 	);
 }
 
+=head2 as_packet
+
+Returns the byte data corresponding to this frame.
+
+=cut
+
 sub as_packet {
 	my $self = shift;
-	my $zlib = shift;
 
 	my @settings = @{$self->{settings}};
 	my $payload = pack 'N1', scalar @settings;
-	for my $idx (1..@settings) {
+	for (1..@settings) {
 		my $item = shift @settings;
 		$payload .= pack 'C1C1n1N1', $item->[1], ($item->[0] >> 16) & 0xFF, $item->[0] & 0xFFFF, $item->[2];
 	}
@@ -57,12 +80,11 @@ sub as_packet {
 	);
 }
 
-sub process {
-	my $self = shift;
-	my $spdy = shift;
+=head2 to_string
 
-	$spdy->apply_settings($self);
-}
+String representation, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;

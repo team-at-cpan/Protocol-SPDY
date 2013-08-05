@@ -13,22 +13,21 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 =cut
 
-use Compress::Raw::Zlib qw(Z_OK WANT_GZIP_OR_ZLIB adler32);
-
 use Protocol::SPDY::Constants ':all';
+
+=head2 type_name
+
+The string type for this frame ('WINDOW_UPDATE').
+
+=cut
 
 sub type_name { 'WINDOW_UPDATE' }
 
-sub header {
-	my $self = shift;
-	my $hdr = $self->{headers}{+shift} or return undef;
-	$hdr->[0]
-}
+=head2 from_data
 
-sub header_multi {
-	my $self = shift;
-	@{$self->{headers}{+shift}}
-}
+Instantiate from the given data.
+
+=cut
 
 sub from_data {
 	my $class = shift;
@@ -48,13 +47,19 @@ sub from_data {
 	);
 }
 
+=head2 stream_id
+
+Which stream we're updating the window for.
+
+=cut
+
 sub stream_id { shift->{stream_id} }
 
-sub process {
-	my $self = shift;
-	my $spdy = shift;
-	$spdy->add_frame($self);
-}
+=head2 to_string
+
+String representation, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;

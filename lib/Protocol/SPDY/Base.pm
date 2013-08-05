@@ -62,7 +62,7 @@ Issue a close request by sending a GOAWAY message.
 sub request_close {
 	my $self = shift;
 	my $reason = shift || 'OK';
-	$self->goaway('OK')
+	$self->goaway($reason);
 }
 
 =head2 check_version
@@ -138,6 +138,7 @@ sub on_read {
 	while(defined(my $bytes = $self->extract_frame(\($self->{input_buffer})))) {
 		push @frames, $self->parse_frame($bytes);
 	}
+	return $self unless @frames;
 	$self->dispatch_frame($_) for $self->prioritise_incoming_frames(@frames);
 }
 
@@ -375,7 +376,7 @@ Instantiate a new stream, returning the L<Protocol::SPDY::Stream> instance.
 =cut
 
 sub create_stream {
-	my ($self, %args) = @_;
+	my $self = shift;
 	my $stream = Protocol::SPDY::Stream->new(
 		id         => $self->next_stream_id,
 		connection => $self,

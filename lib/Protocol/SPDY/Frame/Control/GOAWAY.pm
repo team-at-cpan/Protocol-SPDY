@@ -5,9 +5,11 @@ use parent qw(Protocol::SPDY::Frame::Control);
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::GOAWAY - connection termination request
 
 =head1 SYNOPSIS
+
+ use Protocol::SPDY;
 
 =head1 DESCRIPTION
 
@@ -15,7 +17,19 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+=head2 type_name
+
+The string type for this frame ('GOAWAY').
+
+=cut
+
 sub type_name { 'GOAWAY' }
+
+=head2 status_code
+
+Numerical status code to use for the response.
+
+=cut
 
 sub status_code {
 	my $self = shift;
@@ -24,6 +38,12 @@ sub status_code {
 	return $self;
 }
 
+=head2 from_data
+
+Instantiates from the given data.
+
+=cut
+
 sub from_data {
 	my $class = shift;
 	my %args = @_;
@@ -31,10 +51,25 @@ sub from_data {
 	$stream_id &= ~0x80000000;
 	$class->new(
 		%args,
-		stream_id => $stream_id,
+		last_stream_id => $stream_id,
 		status_code => $status_code,
 	);
 }
+
+=head2 last_stream_id
+
+The last stream ID we accepted, or 0 if no streams were accepted.
+
+=cut
+
+sub last_stream_id { shift->{last_stream_id} }
+
+=head2 status_code_as_text
+
+Text representation of the status code. You can pass a numerical code to look
+up the text reason for that code rather than using the current value.
+
+=cut
 
 sub status_code_as_text {
 	my $self = shift;
@@ -42,53 +77,6 @@ sub status_code_as_text {
 	die "Invalid status code $code" unless exists RST_STATUS_CODE_BY_ID->{$code};
 	return RST_STATUS_CODE_BY_ID->{$code};
 }
-
-sub process {
-	my $self = shift;
-	my $spdy = shift;
-	$spdy->add_frame($self);
-}
-
-=head2 new
-
-Instantiate a new SYN_REPLY frame.
-
-=over 4
-
-=item * flags - bitmask with single value for FLAG_FIN
-
-=item * fin - if present will set/clear FLAG_FIN
-
-=item * stream_id - 31-bit stream identifier
-
-=item * nv - name/value pairs as an arrayref
-
-=back
-
-=cut
-
-sub new {
-	my ($class, %args) = @_;
-	my $stream_id = delete $args{stream_id};
-	die "no stream_id" unless defined $stream_id;
-
-	my $flags = delete $args{flags} || 0;
-	die "Invalid flags: " . $flags if $flags & ~(FLAG_FIN);
-
-	if(exists $args{fin}) {
-		my $fin = delete $args{fin};
-		$flags |=  FLAG_FIN if $fin;
-		$flags &= ~FLAG_FIN if $fin;
-	}
-
-	$args{type} = FRAME_TYPE_BY_NAME->{'GOAWAY'};
-	my $self = $class->SUPER::new(%args);
-	$self->{flags} = $flags;
-	$self->{stream_id} = $stream_id;
-	return $self;
-}
-
-sub stream_id { shift->{stream_id} }
 
 =head2 as_packet
 
@@ -98,23 +86,21 @@ Returns the packet as a byte string.
 
 sub as_packet {
 	my $self = shift;
-	my $zlib = shift;
-	my $payload = pack 'N1N1', $self->stream_id & 0x7FFFFFFF, $self->id;
+	my $payload = pack 'N1N1', $self->last_stream_id & 0x7FFFFFFF, $self->status_code;
 	return $self->SUPER::as_packet(
 		payload => $payload,
 	);
 }
 
-sub update_packet {
-	my $self = shift;
-	$self->{length} = 10 + length $self->nv_header_block;
-	$self->{packet} = $self->as_packet;
-	return $self;
-}
+=head2 to_string
+
+String representation, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;
-	$self->SUPER::to_string . ', stream ' . $self->stream_id . ', reason ' . $self->status_code_as_text;
+	$self->SUPER::to_string . ', stream ' . $self->last_stream_id . ', reason ' . $self->status_code_as_text;
 }
 
 1;

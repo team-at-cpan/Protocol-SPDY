@@ -5,7 +5,7 @@ use parent qw(Protocol::SPDY::Frame::HeaderSupport Protocol::SPDY::Frame::Contro
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::SYN_STREAM - stream creation request packet for SPDY protocol
 
 =head1 SYNOPSIS
 
@@ -15,9 +15,27 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+=head2 type_name
+
+The string type for this frame ('SYN_STREAM').
+
+=cut
+
 sub type_name { 'SYN_STREAM' }
 
+=head2 slot
+
+Which credential slot we're using (unimplemented).
+
+=cut
+
 sub slot { shift->{slot} }
+
+=head2 from_data
+
+Instantiate from the given data.
+
+=cut
 
 sub from_data {
 	my $class = shift;
@@ -30,34 +48,46 @@ sub from_data {
 
 	my $zlib = delete $args{zlib};
 	my $out = $zlib->decompress($args{data});
-	my ($headers, $size) = $class->extract_headers($out);
+	my ($headers) = $class->extract_headers($out);
 	$class->new(
 		%args,
-		stream_id => $stream_id,
+		stream_id            => $stream_id,
 		associated_stream_id => $associated_stream_id,
-		priority => $pri,
-		slot => $slot,
-		headers => $headers,
+		priority             => $pri,
+		slot                 => $slot,
+		headers              => $headers,
 	);
 }
 
+=head2 stream_id
+
+Our stream ID.
+
+=cut
+
 sub stream_id { shift->{stream_id} }
+
+=head2 associated_stream_id
+
+The stream to which we're associated.
+
+=cut
+
 sub associated_stream_id { shift->{associated_stream_id} }
 
-sub priority {
-	my $self = shift;
-	if(@_) {
-		$self->{priority} = shift;
-		return $self
-	}
-	return $self->{priority}
-}
+=head2 priority
 
-sub process {
-	my $self = shift;
-	my $spdy = shift;
-	$spdy->add_frame($self);
-}
+Our priority.
+
+=cut
+
+sub priority { shift->{priority} }
+
+=head2 as_packet
+
+Returns byte representation for this frame.
+
+=cut
 
 sub as_packet {
 	my $self = shift;
@@ -72,6 +102,12 @@ sub as_packet {
 		payload => $payload,
 	);
 }
+
+=head2 to_string
+
+String representation, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;

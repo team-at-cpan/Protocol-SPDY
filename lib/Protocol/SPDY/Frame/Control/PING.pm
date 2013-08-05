@@ -5,7 +5,7 @@ use parent qw(Protocol::SPDY::Frame::Control);
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::PING - aliveness test
 
 =head1 SYNOPSIS
 
@@ -15,7 +15,19 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+=head2 type_name
+
+The string type for this frame ('PING').
+
+=cut
+
 sub type_name { 'PING' }
+
+=head2 id
+
+The unique ping ID.
+
+=cut
 
 sub id {
 	my $self = shift;
@@ -23,6 +35,12 @@ sub id {
 	$self->{id} = shift;
 	return $self;
 }
+
+=head2 from_data
+
+Instantiate from the given data.
+
+=cut
 
 sub from_data {
 	my $class = shift;
@@ -32,46 +50,6 @@ sub from_data {
 		%args,
 		id => $id,
 	);
-}
-
-sub process {
-	my $self = shift;
-	my $spdy = shift;
-	# Need to send the same frame back. We'd like this to be high priority
-	# as well, but that's handled by the frame queuing logic.
-	$spdy->queue_frame($self);
-}
-
-=head2 new
-
-Instantiate a new SYN_REPLY frame.
-
-=over 4
-
-=item * flags - bitmask with single value for FLAG_FIN
-
-=item * fin - if present will set/clear FLAG_FIN
-
-=item * stream_id - 31-bit stream identifier
-
-=item * nv - name/value pairs as an arrayref
-
-=back
-
-=cut
-
-sub new {
-	my ($class, %args) = @_;
-	my $id = delete $args{id};
-
-	my $flags = delete $args{flags} || 0;
-	die "Invalid flags: " . $flags if $flags;
-
-	$args{type} = FRAME_TYPE_BY_NAME->{'PING'};
-	my $self = $class->SUPER::new(%args);
-	$self->{flags} = $flags;
-	$self->{id} = $id;
-	return $self;
 }
 
 =head2 as_packet
@@ -88,12 +66,11 @@ sub as_packet {
 	);
 }
 
-sub update_packet {
-	my $self = shift;
-	$self->{length} = 10 + length $self->nv_header_block;
-	$self->{packet} = $self->as_packet;
-	return $self;
-}
+=head2 to_string
+
+String representation, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;

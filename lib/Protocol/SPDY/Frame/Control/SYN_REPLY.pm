@@ -5,7 +5,7 @@ use parent qw(Protocol::SPDY::Frame::HeaderSupport Protocol::SPDY::Frame::Contro
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::SYN_REPLY - response to a SYN_STREAM
 
 =head1 SYNOPSIS
 
@@ -15,7 +15,19 @@ Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for S
 
 use Protocol::SPDY::Constants ':all';
 
+=head2 type_name
+
+The string type for this frame ('SYN_REPLY').
+
+=cut
+
 sub type_name { 'SYN_REPLY' }
+
+=head2 new
+
+Instantiate.
+
+=cut
 
 sub new {
 	my $class = shift;
@@ -24,16 +36,20 @@ sub new {
 	$class->SUPER::new(%args)
 }
 
+=head2 from_data
+
+Instantiate from the given data.
+
+=cut
+
 sub from_data {
 	my $class = shift;
 	my %args = @_;
 	my ($stream_id) = unpack "N1", substr $args{data}, 0, 4, '';
 	$stream_id &= ~0x80000000;
-	my $dict = ZLIB_DICTIONARY;
-	my $data = $args{data};
 	my $zlib = delete $args{zlib};
 	my $out = $zlib->decompress($args{data});
-	my ($headers, $size) = $class->extract_headers($out);
+	my ($headers) = $class->extract_headers($out);
 	$class->new(
 		%args,
 		stream_id => $stream_id,
@@ -41,63 +57,13 @@ sub from_data {
 	);
 }
 
-sub process {
-	my $self = shift;
-	my $spdy = shift;
-	$spdy->add_frame($self);
-}
+=head2 stream_id
 
-=head2 new
-
-Instantiate a new SYN_REPLY frame.
-
-=over 4
-
-=item * flags - bitmask with single value for FLAG_FIN
-
-=item * fin - if present will set/clear FLAG_FIN
-
-=item * stream_id - 31-bit stream identifier
-
-=item * nv - name/value pairs as an arrayref
-
-=back
+The stream ID we're responding to.
 
 =cut
 
-sub xx_new {
-	my ($class, %args) = @_;
-	my $stream_id = delete $args{stream_id};
-	die "no stream_id" unless defined $stream_id;
-
-	my $nv = delete $args{nv} || [];
-
-	my $flags = delete $args{flags} || 0;
-	die "Invalid flags: " . $flags if $flags & ~(FLAG_FIN);
-
-	if(exists $args{fin}) {
-		my $fin = delete $args{fin};
-		$flags |=  FLAG_FIN if $fin;
-		$flags &= ~FLAG_FIN if $fin;
-	}
-
-	$args{type} = FRAME_TYPE_BY_NAME->{'SYN_REPLY'};
-	my $self = $class->SUPER::new(%args);
-	$self->{flags} = $flags;
-	$self->{stream_id} = $stream_id;
-	$self->{headers} = $args{headers};
-	$self->{name_value} = $nv;
-#	$self->update_packet;
-	return $self;
-}
-
 sub stream_id { shift->{stream_id} }
-
-sub nv_header_block {
-	my $self = shift;
-	$self->{nv_header_block} = $self->pairs_to_nv_header($self->nv_headers) unless exists $self->{nv_header_block};
-	return $self->{nv_header_block};
-}
 
 =head2 as_packet
 
@@ -116,16 +82,15 @@ sub as_packet {
 	);
 }
 
-sub update_packet {
-	my $self = shift;
-	$self->{length} = 10 + length $self->nv_header_block;
-	$self->{packet} = $self->as_packet;
-	return $self;
-}
+=head2 to_string
+
+String representation, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;
-	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort keys @{$self->{headers}};
+	$self->SUPER::to_string . ', ' . $self->header_line;
 }
 
 1;

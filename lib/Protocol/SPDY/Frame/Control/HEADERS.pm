@@ -5,7 +5,7 @@ use parent qw(Protocol::SPDY::Frame::HeaderSupport Protocol::SPDY::Frame::Contro
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::HEADERS - header update packet
 
 =head1 SYNOPSIS
 
@@ -17,7 +17,19 @@ use Compress::Raw::Zlib qw(Z_OK WANT_GZIP_OR_ZLIB adler32);
 
 use Protocol::SPDY::Constants ':all';
 
+=head2 type_name
+
+The string type for this frame ('HEADERS').
+
+=cut
+
 sub type_name { 'HEADERS' }
+
+=head2 from_data
+
+Instantiate from the given data.
+
+=cut
 
 sub from_data {
 	my $class = shift;
@@ -27,21 +39,27 @@ sub from_data {
 
 	my $zlib = delete $args{zlib};
 	my $out = $zlib->decompress($args{data});
-	my ($headers, $size) = $class->extract_headers($out);
+	my ($headers) = $class->extract_headers($out);
 	$class->new(
 		%args,
-		stream_id            => $stream_id,
-		headers              => $headers,
+		stream_id => $stream_id,
+		headers   => $headers,
 	);
 }
 
+=head2 stream_id
+
+Which stream this frame applies to.
+
+=cut
+
 sub stream_id { shift->{stream_id} }
 
-sub process {
-	my $self = shift;
-	my $spdy = shift;
-	$spdy->add_frame($self);
-}
+=head2 as_packet
+
+Byte representation for this packet.
+
+=cut
 
 sub as_packet {
 	my $self = shift;
@@ -53,6 +71,12 @@ sub as_packet {
 		payload => $payload,
 	);
 }
+
+=head2 to_string
+
+String representation, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;
@@ -85,7 +109,5 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
-
-
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
 

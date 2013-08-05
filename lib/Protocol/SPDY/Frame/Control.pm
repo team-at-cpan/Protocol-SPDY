@@ -126,7 +126,7 @@ Returns a name-value pair header block.
 =cut
 
 sub pairs_to_nv_header {
-	my $class = shift;
+	shift;
 	my @hdr = @_;
 	my $data = pack 'N1', @hdr / 2;
 	$data .= pack '(N/A*)*', @hdr;
@@ -141,7 +141,7 @@ or string representation).
 =cut
 
 sub find_class_for_type {
-	my $class = shift;
+	shift;
 	my $type = shift;
 	my $name = exists FRAME_TYPE_BY_NAME->{$type} ? $type : FRAME_TYPE_BY_ID->{$type} or die "No class for $type";
 	return 'Protocol::SPDY::Frame::Control::' . $name;
@@ -156,7 +156,6 @@ Instantiates a frame from the given bytes.
 sub from_data {
 	my $class = shift;
 	my %args = @_;
-	my $flags = $args{flags};
 	my $type = $args{type};
 	my $target_class = $class->find_class_for_type($type);
 	return $target_class->from_data(%args);

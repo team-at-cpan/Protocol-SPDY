@@ -46,6 +46,12 @@ checking ->isa(L<Protocol::SPDY::Frame::Data>) directly.
 
 sub is_data { shift->isa('Protocol::SPDY::Frame::Data') ? 1 : 0 }
 
+=head2 fin
+
+Returns true if the FIN flag is set for this frame.
+
+=cut
+
 sub fin { shift->{fin} }
 
 =head2 new
@@ -64,71 +70,44 @@ sub new {
 	return $self;
 }
 
-=head2 update_length
-
-Updates the length field in the packet.
-
-=cut
-
-sub update_length {
-	my $self = shift;
-	substr $self->{packet}, 5, 3, pack 'N1', ($self->length & 0x00FFFFFF);
-	return $self;
-}
-
-=head2 packet
-
-Returns the current packet as a byte string.
-
-=cut
-
-sub packet {
-	my $self = shift;
-	return $self->{packet} if exists $self->{packet};
-	return $self->{packet} = $self->as_packet;
-}
-
-sub update_packet {
-	my $self = shift;
-	$self->{packet} = $self->as_packet;
-	return $self;
-}
-
 =head2 length
 
 Returns the length of the current packet in bytes.
 
 =cut
 
-sub length : method {
-	my $self = shift;
-	if(@_) {
-		my $id = shift;
-		$self->{length} = $id;
-		$self->update_length;
-		return $self;
-	}
-	unless(exists($self->{length})) {
-		$self->{length} = unpack('N1', substr $self->packet, 4, 8) >> 8;
-	}
-	return $self->{length};
-}
+sub length : method { shift->{length} }
 
 =head2 type
 
-Returns the type of this frame, such as SYN_STREAM, RST_STREAM etc.
+Returns the numerical type of this frame, such as 1 for SYN_STREAM, 3 for RST_STREAM etc.
 
 =cut
 
 sub type { die 'abstract class, no type defined' }
 
+=head2 type_string
+
+Returns the type of this frame as a string.
+
+=cut
+
 sub type_string { FRAME_TYPE_BY_ID->{shift->type} }
 
-sub as_packet { '' }
+=head2 as_packet
+
+Abstract method for returning the byte data comprising the SPDY packet that
+would hold this frame.
+
+=cut
+
+sub as_packet { die 'abstract method' }
 
 =head2 parse
 
-Extract a frame from the given packet if possible.
+Extract a frame from the given packet if possible. Takes a
+scalar reference to byte data, and returns a L<Protocol::SPDY::Frame>
+subclass, or undef on failure.
 
 =cut
 
@@ -172,13 +151,32 @@ sub parse {
 	$obj
 }
 
-sub flags { shift->{flags} }
+=head2 version
+
+Returns the version for this frame, probably 3.
+
+=cut
+
 sub version { shift->{version} }
+
+=head2 extract_frame
+
+Extracts a frame from the given data.
+
+=cut
 
 sub extract_frame {
 	my $class = shift;
 	$class->parse(@_)
 }
+
+=head2 extract_headers
+
+Given a scalar containing bytes, constructs an arrayref of headers
+and returns a 2-element list containing this arrayref and the length
+of processed data.
+
+=cut
 
 sub extract_headers {
 	my $self = shift;
@@ -195,6 +193,12 @@ sub extract_headers {
 	}
 	return \@headers, $start_len - length($data);
 }
+
+=head2 to_string
+
+String representation of this frame, for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;

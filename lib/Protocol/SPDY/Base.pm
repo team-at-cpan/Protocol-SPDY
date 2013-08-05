@@ -97,7 +97,11 @@ Returns the next available stream ID, or 0 if we're out of available streams
 sub next_stream_id {
 	my $self = shift;
 	# 2.3.2 - server streams are even, client streams are odd
-	$self->{last_stream_id} += 2;
+	if(defined $self->{last_stream_id}) {
+		$self->{last_stream_id} += 2;
+	} else {
+		$self->{last_stream_id} = $self->initial_stream_id;
+	}
 	return $self->{last_stream_id} if $self->{last_stream_id} <= 0x7FFFFFFF;
 	return 0;
 }
@@ -222,6 +226,14 @@ sub related_stream {
 	return $stream;
 }
 
+=head2 apply_settings
+
+Applies the given settings to our internal state.
+
+B< Note >: Not yet implemented
+
+=cut
+
 sub apply_settings { }
 
 =head2 extract_frame
@@ -343,19 +355,7 @@ The ID for the last stream we created.
 
 =cut
 
-sub last_stream_id { shift->{id} }
-
-=head2 next_id
-
-Next ID to use for creating a stream.
-
-=cut
-
-sub next_id {
-	my $self = shift;
-	$self->{last_stream_id} ||= 0;
-	$self->{last_stream_id} += 2;
-}
+sub last_stream_id { shift->{last_stream_id} }
 
 =head2 write
 
@@ -368,11 +368,18 @@ sub write {
 	$self->{on_write}->(@_)
 }
 
+=head2 create_stream
+
+Instantiate a new stream, returning the L<Protocol::SPDY::Stream> instance.
+
+=cut
+
 sub create_stream {
 	my ($self, %args) = @_;
 	my $stream = Protocol::SPDY::Stream->new(
-		id => $self->next_id,
+		id         => $self->next_stream_id,
 		connection => $self,
+		version    => $self->version,
 	);
 	$self->{streams}{$stream->id} = $stream;
 	return $stream;
@@ -416,4 +423,12 @@ sub stream_by_id {
 1;
 
 __END__
+
+=head1 AUTHOR
+
+Tom Molesworth <cpan@entitymodel.com>
+
+=head1 LICENSE
+
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
 

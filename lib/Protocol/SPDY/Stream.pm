@@ -98,6 +98,23 @@ use overload
 
 =cut
 
+=head2 new
+
+Instantiates a new stream. Expects the following named parameters:
+
+=over 4
+
+=item * connection - the L<Protocol::SPDY::Base> subclass which is
+managing this side of the connection
+
+=item * stream_id - the ID to use for this stream
+
+=item * version - SPDY version, usually 3
+
+=back
+
+=cut
+
 sub new {
 	my $class = shift;
 	my $self = bless {
@@ -107,6 +124,13 @@ sub new {
 	Scalar::Util::weaken($self->{connection});
 	$self;
 }
+
+=head2 new_from_syn
+
+Constructs a new instance from a L<Protocol::SPDY::Frame::Control::SYN_STREAM>
+frame object.
+
+=cut
 
 sub new_from_syn {
 	my $class = shift;
@@ -122,6 +146,12 @@ sub new_from_syn {
 	$self;
 }
 
+=head2 update_received_headers_from
+
+Updates L</received_headers> from the given frame.
+
+=cut
+
 sub update_received_headers_from {
 	my $self = shift;
 	my $frame = shift;
@@ -130,16 +160,59 @@ sub update_received_headers_from {
 	$self
 }
 
+=head2 from_us
+
+Returns true if we initiated this stream.
+
+=cut
+
 sub from_us { shift->{from_us} ? 1 : 0 }
+
+=head2 id
+
+Returns the ID for this stream.
+
+=cut
 
 sub id { shift->{id} }
 
+=head2 seen_reply
+
+Returns true if we have seen a reply for this stream yet.
+
+=cut
+
 sub seen_reply { shift->{seen_reply} ? 1 : 0 }
+
+=head2 connection
+
+Returns the L<Protocol::SPDY::Base> instance which owns us.
+
+=cut
 
 sub connection { shift->{connection} }
 
-sub priority { 1 }
-sub version { 3 }
+=head2 priority
+
+Returns the priority for this stream (0-7).
+
+=cut
+
+sub priority { shift->{version} }
+
+=head2 version
+
+Returns the SPDY version for this stream (probably 3).
+
+=cut
+
+sub version { shift->{version} }
+
+=head2 syn_frame
+
+Generates a SYN_STREAM frame for starting this stream.
+
+=cut
 
 sub syn_frame {
 	my $self = shift;
@@ -153,10 +226,45 @@ sub syn_frame {
 	);
 }
 
+=head2 sent_header
+
+Returns the given header from our recorded list of sent headers
+
+=cut
+
 sub sent_header { $_[0]->{sent_headers}{$_[1]} }
+
+=head2 sent_headers
+
+Returns the hashref of all sent headers. Please don't change the value, it
+might break something: changing this will B<not> send any updates to the
+other side.
+
+=cut
+
 sub sent_headers { $_[0]->{sent_headers} }
+
+=head2 received_header
+
+Returns the given header from our recorded list of received headers.
+
+=cut
+
 sub received_header { $_[0]->{received_headers}{$_[1]} }
+
+=head2 received_headers
+
+Returns the hashref of all received headers.
+
+=cut
+
 sub received_headers { $_[0]->{received_headers} }
+
+=head2 handle_frame
+
+Attempt to handle the given frame.
+
+=cut
 
 sub handle_frame {
 	my $self = shift;
@@ -185,11 +293,23 @@ sub handle_frame {
 	}
 }
 
+=head2 queue_frame
+
+Asks our connection object to queue the given frame instance.
+
+=cut
+
 sub queue_frame {
 	my $self = shift;
 	my $frame = shift;
 	$self->connection->queue_frame($frame);
 }
+
+=head2 start
+
+Start this stream off by sending a SYN_STREAM frame.
+
+=cut
 
 sub start {
 	my $self = shift;
@@ -311,6 +431,17 @@ Remaining bytes in the current transfer window.
 
 sub transfer_window { shift->{transfer_window} }
 
+=head2 to_string
+
+String representation of this stream, for debugging.
+
+=cut
+
+sub to_string {
+	my $self = shift;
+	'SPDY:Stream ID ' . $self->id
+}
+
 =head2 METHODS - Futures
 
 The following L<Future>-returning methods are available. Attach events using
@@ -382,12 +513,6 @@ want notification on rejection, use an ->on_fail handler on this method.
 sub accepted {
 	my $self = shift;
 	$self->{future_accepted} ||= Future->new
-}
-
-
-sub to_string {
-	my $self = shift;
-	'SPDY:Stream ID ' . $self->id
 }
 
 1;

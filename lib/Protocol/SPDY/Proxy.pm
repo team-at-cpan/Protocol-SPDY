@@ -3,34 +3,31 @@ use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Base);
 
-sub id { shift->{id} }
+=head1 NAME
 
-sub next_id {
-	my $self = shift;
-	$self->{id} ||= 0;
-	$self->{id} += 2;
-}
+Protocol::SPDY::Proxy - act as a proxy between SPDY sessions
 
-sub write { shift->{on_write}->(@_) }
+=head1 SYNOPSIS
 
-sub create_stream {
-	my ($self, %args) = @_;
-	my $stream = Protocol::SPDY::Stream->new(
-		id => $self->next_id,
-		connection => $self,
-	);
-	$self->{streams}{$stream->id} = $stream;
-	return $stream;
-}
+ use Protocol::SPDY;
 
-sub pending_send {
-	scalar @{ shift->{pending_send} }
-}
+=head1 DESCRIPTION
 
-sub has_stream {
-	my $self = shift;
-	my $stream = shift;
-	return exists $self->{streams}{$stream->id} ? 1 : 0;
-}
+=cut
+
+=head1 METHODS
+
+=cut
 
 1;
+
+__END__
+
+=head1 AUTHOR
+
+Tom Molesworth <cpan@entitymodel.com>
+
+=head1 LICENSE
+
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
+

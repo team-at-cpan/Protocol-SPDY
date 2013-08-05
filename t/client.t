@@ -15,7 +15,7 @@ use Test::More;
 	my $outgoing = '';
 	my $client = new_ok('Protocol::SPDY::Client' => [
 		# Server is requesting to send some data across the wire
-		on_write => sub { $outgoing .= $_[1]; },
+		on_write => sub { $outgoing .= $_[0]; },
 	]);
 
 	# Helper code for setting up a new stream and checking validity on the generated

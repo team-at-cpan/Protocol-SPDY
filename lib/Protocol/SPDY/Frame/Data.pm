@@ -7,11 +7,27 @@ use Protocol::SPDY::Constants ':all';
 
 =head2 stream_id
 
+The stream ID for this data packet.
+
 =cut
 
 sub stream_id { shift->{stream_id} }
 
+=head2 payload
+
+The bytes comprising this data packet. Note that there are no guarantees
+on boundaries: UTF-8 decoding for example could fail if this packet is
+processed in isolation.
+
+=cut
+
 sub payload { shift->{payload} }
+
+=head2 from_data
+
+Generates an instance from the given data.
+
+=cut
 
 sub from_data {
 	my $class = shift;
@@ -25,21 +41,11 @@ sub from_data {
 	);
 }
 
-sub hexdump {
-	my $idx = 0;
-	my @bytes = split //, join '', @_;
-	print "== Data frame: had " . @bytes . " bytes\n";
-	while(@bytes) {
-		my @chunk = splice @bytes, 0, 16;
-		printf "%04x ", $idx;
-		printf "%02x ", ord $_ for @chunk;
-		(my $txt = join '', @chunk) =~ s/[^[:print:]]/./g;
-		print "   " x (16 - @chunk);
-		print for split //, $txt;
-		print "\n";
-		$idx += @bytes;
-	}
-}
+=head2 as_packet
+
+Returns the scalar bytes representing this frame.
+
+=cut
 
 sub as_packet {
 	my $self = shift;
@@ -56,3 +62,14 @@ sub as_packet {
 }
 
 1;
+
+__END__
+
+=head1 AUTHOR
+
+Tom Molesworth <cpan@entitymodel.com>
+
+=head1 LICENSE
+
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
+

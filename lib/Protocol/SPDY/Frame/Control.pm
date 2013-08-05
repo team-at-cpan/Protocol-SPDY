@@ -40,27 +40,68 @@ The following control frame types are known:
 
 =cut
 
-
 use Protocol::SPDY::Constants ':all';
 
 =head1 METHODS
 
 =cut
 
+=head2 is_control
+
+This is a control frame, so it will return true.
+
+=cut
+
 sub is_control { 1 }
 
+=head2 is_data
+
+This is not a data frame, so it returns false.
+
+=cut
+
 sub is_data { 0 }
+
+=head2 version
+
+The version for this frame - probably 3.
+
+=cut
 
 sub version {
 	die "no version for $_[0]" unless $_[0]->{version};
 	shift->{version}
 }
 
+=head2 type
+
+The numerical type for this frame.
+
+=cut
+
 sub type { FRAME_TYPE_BY_NAME->{ shift->type_name } }
+
+=head2 uni
+
+Unidirectional flag (if set, we expect no response from the other side).
+
+=cut
 
 sub uni { shift->{uni} }
 
+=head2 compress
+
+The compression flag. Used on some frames.
+
+=cut
+
 sub compress { shift->{compress} }
+
+=head2 as_packet
+
+Returns the byte representation for this frame.
+
+=cut
 
 sub as_packet {
 	my $self = shift;
@@ -92,12 +133,25 @@ sub pairs_to_nv_header {
 	return $data;
 }
 
+=head2 find_class_for_type
+
+Returns the class appropriate for the given type (can be numerical
+or string representation).
+
+=cut
+
 sub find_class_for_type {
 	my $class = shift;
 	my $type = shift;
 	my $name = exists FRAME_TYPE_BY_NAME->{$type} ? $type : FRAME_TYPE_BY_ID->{$type} or die "No class for $type";
 	return 'Protocol::SPDY::Frame::Control::' . $name;
 }
+
+=head2 from_data
+
+Instantiates a frame from the given bytes.
+
+=cut
 
 sub from_data {
 	my $class = shift;
@@ -107,6 +161,12 @@ sub from_data {
 	my $target_class = $class->find_class_for_type($type);
 	return $target_class->from_data(%args);
 }
+
+=head2 to_string
+
+String representation for debugging.
+
+=cut
 
 sub to_string {
 	my $self = shift;

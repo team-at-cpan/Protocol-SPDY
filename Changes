@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.999_001 2013-08-05 06:43:11 Europe/London
 	Development version for cpantesters prior to 1.0 release
 
 	Features:

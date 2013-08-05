@@ -3,7 +3,19 @@ use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Frame);
 
+=head1 NAME
+
+Protocol::SPDY::Frame::Data - data frame support
+
+=head1 DESCRIPTION
+
+=cut
+
 use Protocol::SPDY::Constants ':all';
+
+=head1 METHODS
+
+=cut
 
 =head2 stream_id
 

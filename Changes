@@ -2,6 +2,18 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.999_002 2013-08-06 04:59:45 Europe/London
+	No functional changes
+
+	Dependency fixes:
+	* Attempt to get MIN_PERL_VERSION into Makefile.PL (the
+	Dist::Zilla::Plugin::MinimumPerl module does not appear
+	to do this, perhaps because Dist::Zilla::Plugin::MakeMaker
+	explicitly deletes that hash entry in favour of putting
+	it as a 'use' line in Makefile.PL, unclear yet why this is)
+	This version uses a patched Dist::Zilla::Plugin::MakeMaker
+	to avoid removing the MIN_PERL_VERSION key.
+
 0.999_001 2013-08-05 06:43:11 Europe/London
 	Development version for cpantesters prior to 1.0 release
 

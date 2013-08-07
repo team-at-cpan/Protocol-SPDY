@@ -14,6 +14,9 @@ The SYN_STREAM, SYN_REPLY and HEADERS frame types all use the same method for sp
 HTTP-style headers. This class provides common methods for interacting with that header
 data.
 
+Mainly for internal use - see L<Protocol::SPDY> and L<Protocol::SPDY::Base>
+instead.
+
 =cut
 
 use Protocol::SPDY::Constants ':all';

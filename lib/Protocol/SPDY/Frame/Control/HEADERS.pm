@@ -11,6 +11,8 @@ Protocol::SPDY::Frame::Control::HEADERS - header update packet
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 use Compress::Raw::Zlib qw(Z_OK WANT_GZIP_OR_ZLIB adler32);

@@ -11,6 +11,8 @@ Protocol::SPDY::Frame::Control::SYN_STREAM - stream creation request packet for 
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 use Protocol::SPDY::Constants ':all';

@@ -13,6 +13,8 @@ Protocol::SPDY::Frame::Control::GOAWAY - connection termination request
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 use Protocol::SPDY::Constants ':all';

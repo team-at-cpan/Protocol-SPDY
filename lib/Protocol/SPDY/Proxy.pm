@@ -13,6 +13,8 @@ Protocol::SPDY::Proxy - act as a proxy between SPDY sessions
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 =head1 METHODS

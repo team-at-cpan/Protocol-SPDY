@@ -9,6 +9,8 @@ Protocol::SPDY::Frame::Data - data frame support
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 use Protocol::SPDY::Constants ':all';

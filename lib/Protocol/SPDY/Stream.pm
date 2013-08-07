@@ -106,7 +106,8 @@ The server can push additional streams to the client to avoid the unnecessary
 extra SYN_STREAM request/response cycle for additional resources that the server
 knows will be needed to fulfull the main request.
 
-A server push response is requested with L</push_stream>:
+A server push response is requested with L</push_stream> - this example involves
+a single associated stream:
 
  try {
    my $assoc = $stream->push_stream;
@@ -144,7 +145,8 @@ Generally it's safest to create all the associated streams immediately
 after the initial SYN_STREAM request has been received from the client,
 since that will pass enough information back that the client will know
 how to start arranging the responses for caching. You should then be
-able to send data on the streams as and when it becomes available.
+able to send data on the streams as and when it becomes available. The
+L<Future> C<needs_all> method may be useful here.
 
 Attempting to initiate server-pushed streams after sending content is
 liable to hit race conditions - see section 3.3.1 in the SPDY spec.

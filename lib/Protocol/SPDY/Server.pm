@@ -13,6 +13,8 @@ Protocol::SPDY::Server - server-side handling for SPDY sessions
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 =head1 METHODS

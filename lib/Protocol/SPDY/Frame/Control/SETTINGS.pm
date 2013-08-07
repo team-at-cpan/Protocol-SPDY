@@ -11,6 +11,8 @@ Protocol::SPDY::Frame::Control::SETTINGS - connection settings information
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 use Protocol::SPDY::Constants ':all';

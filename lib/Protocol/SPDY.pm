@@ -80,7 +80,6 @@ see L<#74387|https://rt.cpan.org/Ticket/Display.html?id=74387> for progress on t
 Eventually L<POE> or L<Reflex> implementations may arrive, if someone more familiar
 with those frameworks takes an interest.
 
-
 On the server side, it should be possible to incorporate this as a plugin for
 Plack/PSGI so that any PSGI-compatible web application can support basic SPDY
 requests. Features that plain HTTP doesn't support, such as server push or

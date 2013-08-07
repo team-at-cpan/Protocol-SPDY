@@ -11,6 +11,8 @@ Protocol::SPDY::Tracer - helper class for tracing SPDY sessions
 
 =head1 DESCRIPTION
 
+See L<Protocol::SPDY> and L<Protocol::SPDY::Base>.
+
 =cut
 
 =head1 METHODS

@@ -12,6 +12,8 @@ Protocol::SPDY::Compress - handle zlib compression/decompression
 
 =head1 DESCRIPTION
 
+Used internally. See L<Protocol::SPDY> instead.
+
 =cut
 
 use Compress::Raw::Zlib qw(Z_OK Z_SYNC_FLUSH WANT_GZIP_OR_ZLIB);

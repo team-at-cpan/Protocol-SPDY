@@ -464,6 +464,14 @@ Send out headers for this frame.
 
 sub headers {
 	my $self = shift;
+	my %args = @_;
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Control::HEADERS->new(
+			%args,
+			stream_id => $self->id,
+			version   => $self->version,
+		)
+	);
 }
 
 =head2 window_update

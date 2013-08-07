@@ -3,6 +3,8 @@ Revision history for {{$dist->name}}
 {{$NEXT}}
 	Bug fixes:
 	* Length calculation was incorrect, this could cause undef frames.
+	* ->headers method support in Protocol::SPDY::Stream, needed for
+	proper server push support
 
 	Build:
 	* Uses cpanfile for dependency tracking

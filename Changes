@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	Bug fixes:
+	* Length calculation was incorrect, this could cause undef frames.
+
 	Build:
 	* Uses cpanfile for dependency tracking
 

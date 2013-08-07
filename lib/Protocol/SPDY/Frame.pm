@@ -119,12 +119,13 @@ sub parse {
 
 	# Data frames technically have a different header structure, but the
 	# length and control-bit values are the same.
-	my ($ver, $type, $flags, $len, $len2) = unpack "n1n1c1n1c1", $$pkt;
+	my ($ver, $type, $len) = unpack "n1n1N1", $$pkt;
 
 	# 2.2.2 Length: An unsigned 24-bit value representing the number of
 	# bytes after the length field... It is valid to have a zero-length data
 	# frame.
-	$len = ($len << 8) | $len2;
+	my $flags = ($len >> 24) & 0xFF;
+	$len &= 0x00FFFFFF;
 	return undef unless length $$pkt >= 8 + $len;
 
 	my $control = $ver & 0x8000 ? 1 : 0;

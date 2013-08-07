@@ -25,6 +25,19 @@ The string type for this frame ('HEADERS').
 
 sub type_name { 'HEADERS' }
 
+=head2 new
+
+Instantiate.
+
+=cut
+
+sub new {
+	my $class = shift;
+	my %args = @_;
+	$args{headers} = $class->header_hashref_to_arrayref($args{headers}) if (ref($args{headers}) || '') eq 'HASH';
+	$class->SUPER::new(%args)
+}
+
 =head2 from_data
 
 Instantiate from the given data.
@@ -80,7 +93,7 @@ String representation, for debugging.
 
 sub to_string {
 	my $self = shift;
-	$self->SUPER::to_string . ', ' . join ',', map { $_ . '=' . $self->header($_) } sort @{$self->{headers}};
+	$self->SUPER::to_string . ', id=' . $self->stream_id . ', ' . $self->header_line;
 }
 
 1;

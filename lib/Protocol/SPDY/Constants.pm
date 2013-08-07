@@ -15,6 +15,70 @@ Protocol::SPDY::Constants - constant definitions for the SPDY protocol
 
 Provides some constants.
 
+=head1 CONSTANTS
+
+=head2 FLAG_FIN
+
+Value for the FIN flag in control/data frames.
+
+=head2 FLAG_COMPRESS
+
+Compression flag - currently unused
+
+=head2 FLAG_UNI
+
+Unidirectional flag - used to mark a stream as not requiring a reply.
+
+=head2 HEADER_LENGTH
+
+Number of bytes required in order to work out how big a frame will be.
+
+=head2 ZLIB_DICTIONARY
+
+Initial compression dictionary for the zlib compression protocol used
+for name/value pair data.
+
+=head2 MAX_SUPPORTED_VERSION
+
+Highest version we know about.
+
+=head1 RST_STREAM CODES
+
+The following codes can be returned as values in a
+L<RST_STREAM|Protocol::SPDY::Frame::Control::RST_STREAM> frame. See
+the L<status_code|Protocol::SPDY::Frame::Control::RST_STREAM/status_code>
+and L<status_code_as_text|Protocol::SPDY::Frame::Control::RST_STREAM/status_code_as_text>
+methods.
+
+=head2 PROTOCOL_ERROR
+
+There was a protocol violation in something we've sent to the other side.
+
+=head2 INVALID_STREAM
+
+The requested stream is not valid (for example, when we receive a reply
+to a stream that we did not initiate).
+
+=head2 REFUSED_STREAM
+
+We do not want this stream.
+
+=head2 UNSUPPORTED_VERSION
+
+The protocol version requested is not supported by this library.
+
+=head2 CANCEL
+
+Used by the initiator to stop an active stream before normal completion.
+
+=head2 INTERNAL_ERROR
+
+Generic error when internal state is invalid.
+
+=head2 FLOW_CONTROL_ERROR
+
+We violated the expected window update behaviour.
+
 =cut
 
 use constant {
@@ -176,8 +240,8 @@ use constant {
 
 # Reversed lookup mappings
 use constant {
-	FRAME_TYPE_BY_NAME => +{ reverse %{+FRAME_TYPE_BY_ID} },
-	SETTINGS_BY_NAME => +{ reverse %{+SETTINGS_BY_ID} },
+	FRAME_TYPE_BY_NAME      => +{ reverse %{+FRAME_TYPE_BY_ID} },
+	SETTINGS_BY_NAME        => +{ reverse %{+SETTINGS_BY_ID} },
 	RST_STATUS_CODE_BY_NAME => +{ reverse %{+RST_STATUS_CODE_BY_ID} },
 };
 

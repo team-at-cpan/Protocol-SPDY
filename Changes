@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	Documentation:
+	* Mention some of the constants available in Protocol::SPDY::Constants
 
 0.999_002 2013-08-06 04:59:45 Europe/London
 	No functional changes

@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	Build:
+	* Uses cpanfile for dependency tracking
+
 	Documentation:
 	* Mention some of the constants available in Protocol::SPDY::Constants
 

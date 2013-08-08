@@ -1,6 +1,6 @@
-# Hide this from CPAN index
-package
-	Protocol::SPDY::Frame::Control::SynReply;
+package Protocol::SPDY::Frame::Control::SynReply;
+use strict;
+use warnings;
 
 =head1 NAME
 

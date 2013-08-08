@@ -1,6 +1,6 @@
-# Hide this from CPAN index
-package
-	Protocol::SPDY::Frame::Control::SynStream;
+package Protocol::SPDY::Frame::Control::SynStream;
+use strict;
+use warnings;
 
 =head1 NAME
 

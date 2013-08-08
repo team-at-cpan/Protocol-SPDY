@@ -4,6 +4,14 @@ Revision history for {{$dist->name}}
 	No functional changes
 
 	Bug fixes:
+	* Placeholder classes for the old Protocol::SPDY::Frame::Control::SynStream
+	and Protocol::SPDY::Frame::Control::SynReply packages, to avoid cpan upgrade
+	from attempting to install 0.001.
+
+0.999_005 2013-08-08 22:51:28 Europe/London
+	No functional changes
+
+	Bug fixes:
 	* Previous release was built with PREREQ_FATAL in an attempt to pick up
 	the minimum perl dependency - ExtUtils::MakeMaker docs point out that
 	this is a really bad idea.

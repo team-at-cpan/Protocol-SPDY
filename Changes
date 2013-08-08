@@ -1,6 +1,12 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	No functional changes
+
+	Bug fixes:
+	* Previous release was built with PREREQ_FATAL in an attempt to pick up
+	the minimum perl dependency - ExtUtils::MakeMaker docs point out that
+	this is a really bad idea.
 
 0.999_004 2013-08-08 21:36:58 Europe/London
 	Features:

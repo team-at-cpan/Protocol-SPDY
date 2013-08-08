@@ -2,9 +2,8 @@ package Protocol::SPDY;
 # ABSTRACT: Support for the SPDY protocol
 use strict;
 use warnings;
-use 5.010;
 
-our $VERSION = '0.999_004';
+our $VERSION = '0.999_005';
 
 =head1 NAME
 

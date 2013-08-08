@@ -93,6 +93,17 @@ that isn't going to conflict with any control frame types.
 
 sub type_name { 'data' }
 
+=head2 to_string
+
+String representation, for debugging.
+
+=cut
+
+sub to_string {
+	my $self = shift;
+	$self->SUPER::to_string . ', stream=' . $self->stream_id . ', payload ' . length($self->payload) . " bytes";
+}
+
 1;
 
 __END__

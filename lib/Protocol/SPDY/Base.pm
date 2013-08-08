@@ -91,7 +91,45 @@ sub restore_initial_settings {
 	], keys %args;
 
 	$self->queue_frame(
-		Protocol::SPDY::Frame::SETTINGS->new(
+		Protocol::SPDY::Frame::Control::SETTINGS->new(
+			version  => $self->version,
+			settings => \@pending,
+		)
+	);
+}
+
+=head2 send_settings
+
+Sends a SETTINGS frame generated from the key/value pairs passed
+to this method.
+
+Typically called immediately after establishing the connection.
+
+Example:
+
+ $spdy->send_settings(
+   initial_window_size    => 32768,
+   max_concurrent_streams => 16,
+ );
+
+=cut
+
+sub send_settings {
+	my $self = shift;
+	my %args = @_;
+
+	# Each key-value pair, in ascending numeric order.
+	my @pending = nsort_by {
+		$_->[0]
+	} map [
+		SETTINGS_BY_NAME->{uc $_},
+		$args{$_},
+		0,
+	], keys %args;
+
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Control::SETTINGS->new(
+			version  => $self->version,
 			settings => \@pending,
 		)
 	);

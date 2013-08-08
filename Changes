@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.999_003 2013-08-08 05:40:40 Europe/London
 	Features:
 	* Window update messages now handled by Protocol::SPDY::Stream,
 	rather than leaving the implementation to send them manually.

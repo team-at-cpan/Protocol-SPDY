@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.999_004 2013-08-08 21:36:58 Europe/London
 	Features:
 	* send_settings method for notifying remote of our estimated/current
 	settings - needed for disabling server pusher (max_concurrent_streams=0)

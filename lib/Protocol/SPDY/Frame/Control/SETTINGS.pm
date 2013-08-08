@@ -40,6 +40,16 @@ sub setting {
 	$v->[2]
 }
 
+=head2 all_settings
+
+Returns a list of all settings:
+
+ [ id, flags, value ]
+
+=cut
+
+sub all_settings { @{shift->{settings}} }
+
 =head2 from_data
 
 Instantiate from data.
@@ -75,7 +85,9 @@ sub as_packet {
 	my $payload = pack 'N1', scalar @settings;
 	for (1..@settings) {
 		my $item = shift @settings;
-		$payload .= pack 'C1C1n1N1', $item->[1], ($item->[0] >> 16) & 0xFF, $item->[0] & 0xFFFF, $item->[2];
+		my $v = $item->[0] & 0x00FFFFFF;
+		$v ||= ($item->[1] & 0xFF) << 24;
+		$payload .= pack 'N1N1', $v, $item->[2];
 	}
 	return $self->SUPER::as_packet(
 		payload => $payload,

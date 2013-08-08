@@ -206,15 +206,18 @@ use constant {
 		6 => 'PING',
 		7 => 'GOAWAY',
 		8 => 'HEADERS',
+		9 => 'WINDOW_UPDATE',
+		10 => 'CREDENTIAL',
 	},
 	SETTINGS_BY_ID => {
 		# Expected upload bandwidth
-		1 => 'UPLOAD_BANDWIDTH',
+		1 => 'EXPECTED_UPLOAD_BANDWIDTH',
 		# Expected download bandwidth
-		2 => 'DOWNLOAD_BANDWIDTH',
+		2 => 'EXPECTED_DOWNLOAD_BANDWIDTH',
 		# How long we expect packets to take to go from here to there and back again
-		3 => 'ROUND_TRIP_TIME',
-		# How many streams we want
+		3 => 'EXPECTED_ROUND_TRIP_TIME',
+		# How many streams we want - clients which do not want server push seem to
+		# use a 0 value here to disable the feature
 		4 => 'MAX_CONCURRENT_STREAMS',
 		# TCP initial client window size
 		5 => 'CURRENT_CWND',
@@ -249,6 +252,7 @@ our @EXPORT_OK = qw(
 	FLAG_FIN FLAG_COMPRESS FLAG_UNI
 	FRAME_TYPE_BY_ID FRAME_TYPE_BY_NAME
 	SETTINGS_BY_ID SETTINGS_BY_NAME
+	FLAG_SETTINGS_PERSISTED FLAG_SETTINGS_PERSIST_VALUE
 	RST_STATUS_CODE_BY_ID RST_STATUS_CODE_BY_NAME
 	HEADER_LENGTH
 	ZLIB_DICTIONARY MAX_SUPPORTED_VERSION

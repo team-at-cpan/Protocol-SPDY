@@ -191,6 +191,7 @@ sub new {
 		%args,
 		from_us => 1,
 	}, $class;
+	$self->{transfer_window} = $self->initial_window_size unless exists $self->{transfer_window};
 	Scalar::Util::weaken($self->{connection});
 	$self->finished->done if $fin;
 	$self->remote_finished->done if $uni;
@@ -218,7 +219,16 @@ sub new_from_syn {
 	$self->update_received_headers_from($frame);
 
 	# Check whether we were expecting any more data
-	$self->remote_finished->done if $frame->uni || $frame->fin;
+	$self->remote_finished->done if $frame->fin;
+	$self->finished->done if $frame->uni;
+	if(my $parent_id = $frame->associated_stream_id) {
+		# We've received a unidirectional frame from the other
+		# side, this means it's server-push stream.
+		$self->{associated_stream_id} = $parent_id;
+		die "not unidirectional?" unless $frame->uni;
+		$self->associated_stream->invoke_event(push => $self);
+		$self->accepted->done;
+	}
 	$self;
 }
 
@@ -347,15 +357,14 @@ Attempt to handle the given frame.
 sub handle_frame {
 	my $self = shift;
 	my $frame = shift;
-	if($frame->fin) {
-		die "Duplicate FIN received" if $self->remote_fin;
-		$self->remote_finished->done;
-	}
 
 	if($frame->is_data) {
+		my $len = length($frame->payload);
 		$self->invoke_event(data => $frame->payload);
+		$self->queue_window_update($len);
 	} elsif($frame->type_name eq 'WINDOW_UPDATE') {
-		die "we have a window update";
+		$self->{transfer_window} += $frame->window_delta;
+		warn "We had a window update, window size now " . $self->transfer_window;
 	} elsif($frame->type_name eq 'RST_STREAM') {
 		return $self->accepted->fail($frame->status_code_as_text) if $self->from_us;
 		$self->closed->fail($frame->status_code_as_text);
@@ -373,6 +382,42 @@ sub handle_frame {
 	} else {
 		die "what is $frame ?";
 	}
+
+	if($frame->fin) {
+		die "Duplicate FIN received" if $self->remote_fin;
+		$self->remote_finished->done;
+	}
+}
+
+=head2 send_window_update
+
+Send out any pending window updates.
+
+=cut
+
+sub send_window_update {
+	my $self = shift;
+	return unless my $delta = delete $self->{pending_update};
+	$self->window_update(window_delta => $delta);
+	$self
+}
+
+=head2 queue_window_update
+
+Request a window update due to data frame processing.
+
+=cut
+
+sub queue_window_update {
+	my $self = shift;
+	my $len = shift;
+	if(exists $self->{pending_update}) {
+		$self->{pending_update} += $len;
+	} else {
+		$self->{pending_update} = $len;
+		$self->connection->batch->on_done($self->curry::send_window_update);
+	}
+	$self
 }
 
 =head2 queue_frame
@@ -484,6 +529,15 @@ Update information on the current window progress.
 
 sub window_update {
 	my $self = shift;
+	my %args = @_;
+	die "No window_delta" unless defined $args{window_delta};
+	$self->queue_frame(
+		Protocol::SPDY::Frame::Control::WINDOW_UPDATE->new(
+			%args,
+			stream_id => $self->id,
+			version   => $self->version,
+		)
+	);
 }
 
 =head2 send_data
@@ -553,7 +607,7 @@ Initial window size. Default is 64KB for a new stream.
 
 =cut
 
-sub initial_window_size { shift->{initial_window_size} }
+sub initial_window_size { shift->{initial_window_size} // 65536 }
 
 =head2 transfer_window
 

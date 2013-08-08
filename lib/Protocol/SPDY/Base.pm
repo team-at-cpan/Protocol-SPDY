@@ -16,7 +16,7 @@ SPDY handling.
 
 use Protocol::SPDY::Constants ':all';
 
-use List::UtilsBy qw(extract_by);
+use List::UtilsBy qw(extract_by nsort_by);
 
 =head1 METHODS
 
@@ -32,6 +32,7 @@ passed as named parameters.
 sub new {
 	my $class = shift;
 	bless {
+		initial_window_size => 65536,
 		pending_send  => [ ],
 		@_
 	}, $class
@@ -63,6 +64,37 @@ sub request_close {
 	my $self = shift;
 	my $reason = shift || 'OK';
 	$self->goaway($reason);
+}
+
+=head2 restore_initial_settings
+
+Send back the list of settings we'd previously persisted.
+
+Typically called immediately after establishing the connection.
+
+=cut
+
+sub restore_initial_settings {
+	my $self = shift;
+	my %args = @_;
+
+	# Each key-value pair, in ascending numeric order.
+	# We set the "persisted" flag to notify the other
+	# side that we're handing back the values we stashed
+	# from the last time around.
+	my @pending = nsort_by {
+		$_->[0]
+	} map [
+		SETTINGS_BY_NAME->{uc $_},
+		$args{$_},
+		FLAG_SETTINGS_PERSISTED
+	], keys %args;
+
+	$self->queue_frame(
+		Protocol::SPDY::Frame::SETTINGS->new(
+			settings => \@pending,
+		)
+	);
 }
 
 =head2 check_version
@@ -115,6 +147,7 @@ Requests sending the given C< $frame > at the earliest opportunity.
 sub queue_frame {
 	my $self = shift;
 	my $frame = shift;
+	$self->invoke_event(sending_frame => $frame);
 	$self->write($frame->as_packet($self->sender_zlib));
 }
 
@@ -139,8 +172,23 @@ sub on_read {
 		push @frames, my $f = $self->parse_frame($bytes);
 	}
 	return $self unless @frames;
+
+	# Get ourselves a temp copy for reentrancy protection
+	local $self->{batch};
 	$self->dispatch_frame($_) for $self->prioritise_incoming_frames(@frames);
+	# Process any tasks we queued up
+	$self->batch->done if exists $self->{batch};
+	$self
 }
+
+=head2 batch
+
+Future representing the current batch of frames being processed. Used
+for deferring window updates.
+
+=cut
+
+sub batch { shift->{batch} ||= Future->new }
 
 =head2 prioritise_incoming_frames
 
@@ -184,7 +232,7 @@ sub dispatch_frame {
 			# Bounce it straight back
 			$self->queue_frame($frame);
 		} elsif($frame->type_name eq 'SETTINGS') {
-			$self->invoke_event(settings => $frame);
+			$self->apply_settings($frame);
 		} else {
 			die "We do not know what to do with $frame yet";
 		}
@@ -232,11 +280,20 @@ sub related_stream {
 
 Applies the given settings to our internal state.
 
-B< Note >: Not yet implemented
-
 =cut
 
-sub apply_settings { }
+sub apply_settings {
+	my $self = shift;
+	my $frame = shift;
+
+	foreach my $setting ($frame->all_settings) {
+		my ($id, $flags, $value) = @$setting;
+		my $k = lc(SETTINGS_BY_ID->{$id}) or die 'unknown setting ' . $id;
+		$self->{$k} = $value;
+		$self->invoke_event(setting => $k => $value, $flags);
+	}
+	$self
+}
 
 =head2 extract_frame
 
@@ -423,6 +480,70 @@ sub stream_by_id {
 	my $id = shift;
 	return $self->{streams}{$id}
 }
+
+=head2 expected_upload_bandwidth
+
+The expected rate (kilobyte/sec) we can send data to the other side.
+
+=cut
+
+sub expected_upload_bandwidth { shift->{expected_upload_bandwidth} }
+
+=head2 expected_download_bandwidth
+
+The rate (kilobyte/sec) we expect to be able to receive data from the other side.
+
+=cut
+
+sub expected_download_bandwidth { shift->{expected_download_bandwidth} }
+
+=head2 expected_round_trip_time
+
+The rate (kilobyte/sec) we expect to be able to receive data from the other side.
+
+=cut
+
+sub expected_round_trip_time { shift->{expected_round_trip_time} }
+
+=head2 max_concurrent_streams
+
+The rate (kilobyte/sec) we expect to be able to receive data from the other side.
+
+=cut
+
+sub max_concurrent_streams { shift->{max_concurrent_streams} }
+
+=head2 current_cwnd
+
+The rate (kilobyte/sec) we expect to be able to receive data from the other side.
+
+=cut
+
+sub current_cwnd { shift->{current_cwnd} }
+
+=head2 download_retrans_rate
+
+The rate (kilobyte/sec) we expect to be able to receive data from the other side.
+
+=cut
+
+sub download_retrans_rate { shift->{download_retrans_rate} }
+
+=head2 initial_window_size
+
+The rate (kilobyte/sec) we expect to be able to receive data from the other side.
+
+=cut
+
+sub initial_window_size { shift->{initial_window_size} }
+
+=head2 client_certificate_vector_size
+
+The rate (kilobyte/sec) we expect to be able to receive data from the other side.
+
+=cut
+
+sub client_certificate_vector_size { shift->{client_certificate_vector_size} }
 
 1;
 

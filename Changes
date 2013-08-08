@@ -1,6 +1,12 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	Features:
+	* send_settings method for notifying remote of our estimated/current
+	settings - needed for disabling server pusher (max_concurrent_streams=0)
+
+	Bug fixes:
+	* Initial settings notification method used incorrect ::SETTINGS class
 
 0.999_003 2013-08-08 05:40:40 Europe/London
 	Features:

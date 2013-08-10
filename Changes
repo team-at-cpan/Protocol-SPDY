@@ -7,6 +7,9 @@ Revision history for {{$dist->name}}
 	* Provide empty ->write method for ::Tracer since we don't expect to have
 	an on_write handler here.
 
+	Documentation:
+	* Trim down the server example
+
 0.999_006 2013-08-10 01:35:08 Europe/London
 	Features:
 	* send_frame and receive_frame events on Protocol::SPDY::Base, for hooks on

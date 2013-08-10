@@ -184,16 +184,22 @@ SSL/TLS next protocol negotiation for SPDY/3 with HTTP/1.1 fallback:
 
 # EXAMPLE: examples/npn.pl
 
-Show frames (one per line) from traffic capture (note that this needs to be
-post-TLS decryption, without any TCP/IP headers):
+Show frames (one per line) from traffic capture. Note that this needs to be
+post-TLS decryption, without any TCP/IP headers. Also, for tracing traffic
+on a live application, you'd hook the C<send_frame> and C<receive_frame>
+events instead.
 
 # EXAMPLE: examples/dumper.pl
 
-Simple L<IO::Async>-based server which reports the originating request:
+An L<IO::Async>-based server which reports the originating request. This
+should be just enough to implement a basic server for other frameworks
+- see L<Net::Async::SPDY::Server> for a more complete implementation:
 
-# EXAMPLE: examples/server-async.pl
+# EXAMPLE: examples/server-basic-async.pl
 
-L<IO::Async>-based client for simple GET requests:
+L<IO::Async>-based client for simple GET requests, again
+L<Net::Async::SPDY::Client> would be the place to look for a real client
+implementation:
 
 # EXAMPLE: examples/client-async.pl
 

@@ -226,6 +226,7 @@ sub new_from_syn {
 		# side, this means it's server-push stream.
 		$self->{associated_stream_id} = $parent_id;
 		die "not unidirectional?" unless $frame->uni;
+		die "no associated stream for $parent_id on " . $self->id unless $self->associated_stream;
 		$self->associated_stream->invoke_event(push => $self);
 		$self->accepted->done;
 	}

@@ -1,12 +1,20 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
-	No functional changes
+	Features:
+	* send_frame and receive_frame events on Protocol::SPDY::Base, for hooks on
+	frame send/receive - both will be called with the relevant frame instance.
+
+	Documentation:
+	* Clean up some inconsistencies in spdy/2 vs. spdy/3 versioning
 
 	Bug fixes:
 	* Placeholder classes for the old Protocol::SPDY::Frame::Control::SynStream
 	and Protocol::SPDY::Frame::Control::SynReply packages, to avoid cpan upgrade
 	from attempting to install 0.001.
+
+	Examples:
+	* Added dumper.pl example for analysing captured streams
 
 0.999_005 2013-08-08 22:51:28 Europe/London
 	No functional changes

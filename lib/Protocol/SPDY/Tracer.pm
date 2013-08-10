@@ -37,6 +37,22 @@ sub control_frame_bytes {
 	)->as_packet($self->sender_zlib)
 }
 
+=head2 dispatch_unhandled_frame
+
+Ignore unhandled frames.
+
+=cut
+
+sub dispatch_unhandled_frame { }
+
+=head2 write
+
+Write requests are always ignored here.
+
+=cut
+
+sub write { }
+
 1;
 
 =head1 AUTHOR

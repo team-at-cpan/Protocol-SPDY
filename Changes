@@ -1,6 +1,13 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	Bug fixes:
+	* Pass unhandled frames to separate ->dispatch_unhandled_frame method so
+	that ::Tracer class is able to ignore these.
+	* Provide empty ->write method for ::Tracer since we don't expect to have
+	an on_write handler here.
+
+0.999_006 2013-08-10 01:35:08 Europe/London
 	Features:
 	* send_frame and receive_frame events on Protocol::SPDY::Base, for hooks on
 	frame send/receive - both will be called with the relevant frame instance.

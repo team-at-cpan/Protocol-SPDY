@@ -274,9 +274,25 @@ sub dispatch_frame {
 		} elsif($frame->type_name eq 'SETTINGS') {
 			$self->apply_settings($frame);
 		} else {
-			die "We do not know what to do with $frame yet";
+			# Give subclasses a chance to try this one
+			return $self->dispatch_unhandled_frame($frame);
 		}
 	}
+	return $self;
+}
+
+=head2 dispatch_unhandled_frame
+
+Called when we receive a frame that's not been picked up by the
+usual handlers - could be a SYN_REPLY on a stream that we don't
+have, for example.
+
+=cut
+
+sub dispatch_unhandled_frame {
+	my $self = shift;
+	my $frame = shift;
+	die "We do not know what to do with $frame yet";
 }
 
 =head2 incoming_stream

@@ -3,7 +3,7 @@ package Protocol::SPDY;
 use strict;
 use warnings;
 
-our $VERSION = '0.999_006';
+our $VERSION = '0.999_007';
 
 =head1 NAME
 

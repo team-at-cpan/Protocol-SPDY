@@ -185,7 +185,7 @@ Requests sending the given C< $frame > at the earliest opportunity.
 sub queue_frame {
 	my $self = shift;
 	my $frame = shift;
-	$self->invoke_event(sending_frame => $frame);
+	$self->invoke_event(send_frame => $frame);
 	$self->write($frame->as_packet($self->sender_zlib));
 }
 
@@ -208,6 +208,8 @@ sub on_read {
 	my @frames;
 	while(defined(my $bytes = $self->extract_frame(\($self->{input_buffer})))) {
 		push @frames, my $f = $self->parse_frame($bytes);
+		die "$bytes generated undef frame" unless $f;
+		$self->invoke_event(receive_frame => $f);
 	}
 	return $self unless @frames;
 

@@ -8,6 +8,7 @@ Revision history for {{$dist->name}}
 	an on_write handler here.
 
 	Documentation:
+	* Document events on Protocol::SPDY::Base and Protocol::SPDY::Stream.
 	* Trim down the server example
 
 0.999_006 2013-08-10 01:35:08 Europe/London

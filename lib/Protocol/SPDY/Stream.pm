@@ -721,6 +721,42 @@ sub accepted {
 
 __END__
 
+=head1 EVENTS
+
+The following events may be raised by this class - use
+L<Mixin::Event::Dispatch/subscribe_to_event> to watch for them:
+
+ $stream->subscribe_to_event(
+   push => sub {
+     my ($ev, $stream) = @_;
+	 print "Server push: received new stream $stream\n";
+   }
+ );
+
+=head2 push event
+
+Called when we have received a new stream from the other side
+with an associated stream. This currently means the server is
+pre-emptively sending data to us, see L</Server push support>.
+Will be passed the new L<Protocol::SPDY::Stream> instance.
+
+=head2 data event
+
+This will be called whenever we receive data from the other
+side. Will be passed the data payload as a scalar.
+
+=head2 transfer_window event
+
+The remote has sent us a WINDOW_UPDATE packet which means we
+have just updated our transfer window. Will be called with
+the new transfer window size and the delta in bytes.
+
+=head2 headers event
+
+New headers have been received on this stream. Will be called
+with the L<Protocol::SPDY::Frame::Control::HEADERS> containing
+the header information.
+
 =head1 COMPONENTS
 
 Further documentation can be found in the following modules:

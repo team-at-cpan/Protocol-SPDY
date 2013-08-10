@@ -189,6 +189,7 @@ sub queue_frame {
 	$self->write($frame->as_packet($self->sender_zlib));
 }
 
+
 =head2 on_read
 
 This is the method that an external transport would call when it has
@@ -220,15 +221,6 @@ sub on_read {
 	$self->batch->done if exists $self->{batch};
 	$self
 }
-
-=head2 batch
-
-Future representing the current batch of frames being processed. Used
-for deferring window updates.
-
-=cut
-
-sub batch { shift->{batch} ||= Future->new }
 
 =head2 prioritise_incoming_frames
 
@@ -345,8 +337,8 @@ sub apply_settings {
 	foreach my $setting ($frame->all_settings) {
 		my ($id, $flags, $value) = @$setting;
 		my $k = lc(SETTINGS_BY_ID->{$id}) or die 'unknown setting ' . $id;
-		$self->{$k} = $value;
 		$self->invoke_event(setting => $k => $value, $flags);
+		$self->{$k} = $value;
 	}
 	$self
 }
@@ -601,9 +593,56 @@ The rate (kilobyte/sec) we expect to be able to receive data from the other side
 
 sub client_certificate_vector_size { shift->{client_certificate_vector_size} }
 
+=head1 METHODS - Futures
+
+=head2 batch
+
+Future representing the current batch of frames being processed. Used
+for deferring window updates.
+
+=cut
+
+sub batch { shift->{batch} ||= Future->new }
+
 1;
 
 __END__
+
+=head1 EVENTS
+
+The following events may be raised by this class - use
+L<Mixin::Event::Dispatch/subscribe_to_event> to watch for them:
+
+ $spdy->subscribe_to_event(
+   send_frame => sub {
+     my ($ev, $frame) = @_;
+	 print "Send: $frame\n";
+	 $ev->unsubscribe if $frame->type_name eq 'GOAWAY';
+   }
+ );
+
+=head2 send_frame event
+
+Called with the L<Protocol::SPDY::Frame> instance just before we attempt to send
+a frame to the other side.
+
+=head2 receive_frame event
+
+Called with the L<Protocol::SPDY::Frame> instance just before we attempt to process
+a frame received from the other side.
+
+=head2 ping event
+
+Called when we have received a PING request, just before we send back the reply.
+
+=head2 stream event
+
+Called after we have created a new stream in response to an incoming packet.
+
+=head2 setting event
+
+Called for each new SETTINGS entry received from the other side, just before
+we have applied the value locally.
 
 =head1 AUTHOR
 

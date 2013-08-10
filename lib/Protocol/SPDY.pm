@@ -48,7 +48,6 @@ use Protocol::SPDY::Stream;
 use Protocol::SPDY::Server;
 use Protocol::SPDY::Client;
 use Protocol::SPDY::Tracer;
-use Protocol::SPDY::Proxy;
 
 1;
 
@@ -112,7 +111,7 @@ header:
 
 For example:
 
- Alternate-Protocol: 2443:spdy/2
+ Alternate-Protocol: 2443:spdy/3
 
 This applies both to HTTP and HTTPS.
 
@@ -120,12 +119,12 @@ If the browser is already connected to the server using TLS, the TLS/NPN mechani
 be used to indicate that SPDY is available. Currently this requires openssl-1.1 or later,
 although the NPN extension should be simple enough to backport if needed (see
 L<http://www.ietf.org/id/draft-agl-tls-nextprotoneg-00.txt> for details). Since the
-port is already connected, only the <protocol> part is required ('spdy/2' or 'spdy/3')
+port is already connected, only the <protocol> part is required ('spdy/3')
 when sending via TLS/NPN.
 
 This information could also be provided via the Alternate-Protocol header:
 
- Alternate-Protocol: 2443:spdy/2,443:npn-spdy/2,443:npn-spdy/3
+ Alternate-Protocol: 2443:spdy/3,443:npn-spdy/3
 
 =head2 PACKET SEQUENCE
 

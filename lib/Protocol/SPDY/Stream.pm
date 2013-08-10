@@ -364,8 +364,9 @@ sub handle_frame {
 		$self->invoke_event(data => $frame->payload);
 		$self->queue_window_update($len);
 	} elsif($frame->type_name eq 'WINDOW_UPDATE') {
-		$self->{transfer_window} += $frame->window_delta;
-		warn "We had a window update, window size now " . $self->transfer_window;
+		my $delta = $frame->window_delta;
+		$self->{transfer_window} += $delta;
+		$self->invoke_event(transfer_window => $self->transfer_window, $delta);
 	} elsif($frame->type_name eq 'RST_STREAM') {
 		return $self->accepted->fail($frame->status_code_as_text) if $self->from_us;
 		$self->closed->fail($frame->status_code_as_text);

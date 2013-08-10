@@ -184,6 +184,11 @@ SSL/TLS next protocol negotiation for SPDY/3 with HTTP/1.1 fallback:
 
 # EXAMPLE: examples/npn.pl
 
+Show frames (one per line) from traffic capture (note that this needs to be
+post-TLS decryption, without any TCP/IP headers):
+
+# EXAMPLE: examples/dumper.pl
+
 Simple L<IO::Async>-based server which reports the originating request:
 
 # EXAMPLE: examples/server-async.pl

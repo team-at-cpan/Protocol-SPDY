@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.999_007 2013-08-11 04:10:12 Europe/London
 	Bug fixes:
 	* Pass unhandled frames to separate ->dispatch_unhandled_frame method so
 	that ::Tracer class is able to ignore these.

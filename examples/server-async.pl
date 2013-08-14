@@ -26,7 +26,7 @@ $loop->SSL_listen(
 		# Normally you'd also list HTTP here,
 		# but since we're only supporting SPDY
 		# in this example, we don't do that.
-		# 'http1.1'
+		# 'http/1.1'
 	],
 	SSL_cert_file => 'certs/examples.crt',
 	SSL_key_file => 'certs/examples.key',

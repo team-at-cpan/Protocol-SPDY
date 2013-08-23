@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	Non-dev release.
 
 0.999_007 2013-08-11 04:10:12 Europe/London
 	Bug fixes:

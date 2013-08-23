@@ -70,8 +70,6 @@ sub as_packet {
 		$len >> 8,
 		$len & 0xFF;
 	$pkt .= $payload;
-	# warn "done packet: $pkt\n";
-	# hexdump($pkt);
 	return $pkt;
 }
 

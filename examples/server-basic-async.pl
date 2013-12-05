@@ -100,7 +100,7 @@ $loop->SSL_listen(
 		);
 		$loop->add($stream);
 	},
-	on_ssl_error => sub { die "ssl error: @_"; },
+	on_ssl_error => sub { warn "ose: @_\n"; die "ssl error: @_"; },
 	on_connect_error => sub { die "conn error: @_"; },
 	on_resolve_error => sub { die "resolve error: @_"; },
 	on_listen => sub {

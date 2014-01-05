@@ -31,6 +31,7 @@ $loop->SSL_listen(
 	SSL_cert_file => 'certs/examples.crt',
 	SSL_key_file => 'certs/examples.key',
 	SSL_ca_path => 'certs/ProtocolSPDYCA',
+	SSL_ciphers => 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-RC4-SHA:ECDHE-RSA-AES128-SHA:RC4:HIGH:!MD5:!aNULL:!EDH',
 	on_accept => sub {
 		my $sock = shift;
 		print "Client connecting from " . join(':', $sock->peerhost, $sock->peerport) . ", we're using " . $sock->next_proto_negotiated . "\n";

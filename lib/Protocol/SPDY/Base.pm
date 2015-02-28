@@ -17,6 +17,8 @@ SPDY handling.
 
 use Protocol::SPDY::Constants ':all';
 
+use Log::Any qw($log);
+
 use List::UtilsBy qw(extract_by nsort_by);
 
 =head1 METHODS
@@ -266,6 +268,9 @@ sub dispatch_frame {
 			$self->queue_frame($frame);
 		} elsif($frame->type_name eq 'SETTINGS') {
 			$self->apply_settings($frame);
+		} elsif($frame->type_name eq 'WINDOW_UPDATE') {
+			# Connection-level window delta
+			$self->apply_window_update($frame);
 		} else {
 			# Give subclasses a chance to try this one
 			return $self->dispatch_unhandled_frame($frame);
@@ -342,6 +347,12 @@ sub apply_settings {
 		$self->{$k} = $value;
 	}
 	$self
+}
+
+sub apply_window_update {
+	my ($self, $frame) = @_;
+	$self->{window} += $frame->window_delta;
+	$log->tracef("%s connection window now %d bytes", "$self", $self->{window});
 }
 
 =head2 extract_frame

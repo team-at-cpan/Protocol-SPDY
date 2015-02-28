@@ -368,12 +368,12 @@ sub extract_frame {
 	my $self = shift;
 	my $buffer = shift;
 	# 2.2 Frames always have a common header which is 8 bytes in length
-	return undef unless length $$buffer >= 8;
+	return undef unless length $$buffer >= $self->HEADER_LENGTH;
 
 	(undef, my $len) = unpack 'N1N1', $$buffer;
 	$len &= 0x00FFFFFF;
-	return undef unless length($$buffer) >= (8 + $len);
-	my $bytes = substr $$buffer, 0, 8 + $len, '';
+	return undef unless length($$buffer) >= ($self->HEADER_LENGTH + $len);
+	my $bytes = substr $$buffer, 0, $self->HEADER_LENGTH + $len, '';
 	return $bytes;
 }
 

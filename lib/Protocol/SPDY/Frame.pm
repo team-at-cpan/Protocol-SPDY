@@ -116,7 +116,7 @@ sub parse {
 	shift;
 	my $pkt = shift;
 	# 2.2 Frames always have a common header which is 8 bytes in length
-	return undef unless length $$pkt >= 8;
+	return undef unless length $$pkt >= $self->HEADER_LENGTH;
 
 	# Data frames technically have a different header structure, but the
 	# length and control-bit values are the same.
@@ -127,7 +127,7 @@ sub parse {
 	# frame.
 	my $flags = ($len >> 24) & 0xFF;
 	$len &= 0x00FFFFFF;
-	return undef unless length $$pkt >= 8 + $len;
+	return undef unless length $$pkt >= $self->HEADER_LENGTH + $len;
 
 	my $control = $ver & 0x8000 ? 1 : 0;
 	return Protocol::SPDY::Frame::Data->from_data(
@@ -149,7 +149,7 @@ sub parse {
 		uni     => $flags & FLAG_UNI ? 1 : 0,
 		data    => substr $$pkt, 8, $len
 	);
-	substr $$pkt, 0, 8 + $len, '';
+	substr $$pkt, 0, $self->HEADER_LENGTH + $len, '';
 	$obj
 }
 

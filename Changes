@@ -1,8 +1,18 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	No new features.
+
+	Documentation:
+	* Missing Changes from previous version...
 
 1.001     2015-02-01 16:21:37+00:00 Europe/London
+	Minor update, mainly to cover ALPN now that openssl-1.0.2 has been
+	officially released.
+
+	Documentation:
+	* Minor updates for spdy/3.1
+	* Mention ALPN
 
 1.000     2013-08-23 23:17:58 Europe/London
 	Non-dev release.

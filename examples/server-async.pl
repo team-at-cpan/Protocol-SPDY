@@ -22,7 +22,7 @@ $loop->SSL_listen(
 		port     => $ENV{PROTOCOL_SPDY_LISTEN_PORT} || 0,
 	},
 	SSL_npn_protocols => [
-		'spdy/3',
+		'spdy/3.1',
 		# Normally you'd also list HTTP here,
 		# but since we're only supporting SPDY
 		# in this example, we don't do that.

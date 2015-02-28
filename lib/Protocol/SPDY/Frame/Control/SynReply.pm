@@ -1,4 +1,5 @@
 package Protocol::SPDY::Frame::Control::SynReply;
+
 use strict;
 use warnings;
 

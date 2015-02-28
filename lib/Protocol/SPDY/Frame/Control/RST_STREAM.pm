@@ -1,4 +1,5 @@
 package Protocol::SPDY::Frame::Control::RST_STREAM;
+
 use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Frame::Control);

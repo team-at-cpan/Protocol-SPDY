@@ -1,4 +1,5 @@
 package Protocol::SPDY::Tracer;
+
 use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Base);

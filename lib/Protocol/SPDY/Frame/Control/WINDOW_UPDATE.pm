@@ -1,4 +1,5 @@
 package Protocol::SPDY::Frame::Control::WINDOW_UPDATE;
+
 use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Frame::Control);

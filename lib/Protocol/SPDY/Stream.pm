@@ -1,4 +1,5 @@
 package Protocol::SPDY::Stream;
+
 use strict;
 use warnings;
 use parent qw(Mixin::Event::Dispatch);

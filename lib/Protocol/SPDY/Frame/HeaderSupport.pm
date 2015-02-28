@@ -1,4 +1,5 @@
 package Protocol::SPDY::Frame::HeaderSupport;
+
 use strict;
 use warnings;
 

@@ -1,4 +1,5 @@
 package Protocol::SPDY::Compress;
+
 use strict;
 use warnings;
 

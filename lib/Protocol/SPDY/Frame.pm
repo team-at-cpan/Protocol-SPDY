@@ -1,4 +1,5 @@
 package Protocol::SPDY::Frame;
+
 use strict;
 use warnings;
 

@@ -1,4 +1,5 @@
 package Protocol::SPDY::Base;
+
 use strict;
 use warnings;
 use parent qw(Mixin::Event::Dispatch);

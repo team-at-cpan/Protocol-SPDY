@@ -1,4 +1,5 @@
 package Protocol::SPDY::Frame::Control::CREDENTIAL;
+
 use strict;
 use warnings;
 use parent qw(Protocol::SPDY::Frame::Control);

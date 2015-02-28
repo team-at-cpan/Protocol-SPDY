@@ -1,4 +1,5 @@
 package Protocol::SPDY::Frame::Control::SynStream;
+
 use strict;
 use warnings;
 

@@ -1,4 +1,5 @@
 package Protocol::SPDY::Test;
+
 use strict;
 use warnings;
 use Protocol::SPDY::Constants ':all';

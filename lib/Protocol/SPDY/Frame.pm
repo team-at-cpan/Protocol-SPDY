@@ -66,7 +66,7 @@ subclass implementation.
 sub new {
 	my ($class, %args) = @_;
 	my $self = bless \%args, $class;
-	$self->{packet} //= "\0" x 8;
+	$self->{packet} //= "\0" x $self->HEADER_LENGTH;
 	$self->{data} //= '';
 	return $self;
 }

@@ -92,9 +92,10 @@ use constant {
 	HEADER_LENGTH => 8,
 	# The spec requires seeding our zlib instance with a specific dictionary to get
 	# better performance. Note that the dictionary varies depending on the version
-	# of the protocol we're dealing with - this is the spdy/3 dictionary:
+	# of the protocol we're dealing with - this is the spdy/3.1 dictionary:
 	ZLIB_DICTIONARY	=> join('',
 		(
+			# These are all length-prefixed strings, mostly client=>server traffic
 			map pack('N/a*', $_), qw(
 				options
 				head
@@ -153,7 +154,9 @@ use constant {
 				method
 				get
 				status
-			), "200 OK", qw(
+			),
+			"200 OK",
+			qw(
 				version
 				HTTP/1.1
 				url
@@ -163,6 +166,7 @@ use constant {
 				origin
 			)
 		),
+		# Now we have some other useful strings - these are mostly server responses, no length prefix
 		"100101201202205206300302303304305306307402405406407408409410411412413414415416417502504505",
 		"203 Non-Authoritative Information",
 		"204 No Content",
@@ -207,7 +211,7 @@ use constant {
 		7 => 'GOAWAY',
 		8 => 'HEADERS',
 		9 => 'WINDOW_UPDATE',
-		10 => 'CREDENTIAL',
+		10 => 'CREDENTIAL',   # no longer present in 3.1+
 	},
 	SETTINGS_BY_ID => {
 		# Expected upload bandwidth

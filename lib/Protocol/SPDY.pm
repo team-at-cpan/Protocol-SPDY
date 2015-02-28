@@ -49,6 +49,8 @@ use Protocol::SPDY::Server;
 use Protocol::SPDY::Client;
 use Protocol::SPDY::Tracer;
 
+sub alpn_identifiers { 'spdy/3.1', 'spdy/3' }
+
 1;
 
 __END__

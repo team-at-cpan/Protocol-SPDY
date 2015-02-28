@@ -27,14 +27,16 @@ $loop->SSL_connect(
 		host     => $uri->host,
 		port     => $uri->port || 'https',
 	},
-	SSL_npn_protocols => [
+	SSL_alpn_protocols => [
+		'spdy/3.1',
 		'spdy/3',
 	],
 	SSL_verify_mode => SSL_VERIFY_NONE,
 	on_connected => sub {
 		my $sock = shift;
-		print "Connected to " . join(':', $sock->peerhost, $sock->peerport) . ", we're using " . $sock->next_proto_negotiated . "\n";
-		die "Wrong protocol" unless $sock->next_proto_negotiated eq 'spdy/3';
+		my $proto = $sock->alpn_selected;
+		print "Connected to " . join(':', $sock->peerhost, $sock->peerport) . ", we're using " . $proto . "\n";
+		die "Wrong protocol" unless $proto =~ /^spdy/;
 		my $stream = IO::Async::Stream->new(handle => $sock);
 		my $spdy = Protocol::SPDY::Client->new;
 		# Pass all writes directly to the stream

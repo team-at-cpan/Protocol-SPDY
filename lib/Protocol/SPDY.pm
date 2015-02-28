@@ -115,14 +115,12 @@ For example:
 
 This applies both to HTTP and HTTPS.
 
-If the browser is already connected to the server using TLS, the TLS/NPN mechanism can
-be used to indicate that SPDY is available. Currently this requires openssl-1.1 or later,
-although the NPN extension should be simple enough to backport if needed (see
-L<http://www.ietf.org/id/draft-agl-tls-nextprotoneg-00.txt> for details). Since the
-port is already connected, only the <protocol> part is required ('spdy/3')
-when sending via TLS/NPN.
+If the browser is already connected to the server using TLS, the ALPN or NPN mechanisms can
+be used to indicate that SPDY is available. Currently this requires openssl-1.0.2 or later
+for ALPN, although the NPN extension works in older openssl versions (see
+L<http://www.ietf.org/id/draft-agl-tls-nextprotoneg-00.txt> for details).
 
-This information could also be provided via the Alternate-Protocol header:
+An Alternate-Protocol header with more than one protocol might look as follows:
 
  Alternate-Protocol: 2443:spdy/3,443:npn-spdy/3
 

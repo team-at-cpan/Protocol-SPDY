@@ -6,7 +6,7 @@ use parent qw(Protocol::SPDY::Frame::Control);
 
 =head1 NAME
 
-Protocol::SPDY::Frame::Control::SynStream - stream creation request packet for SPDY protocol
+Protocol::SPDY::Frame::Control::WINDOW_UPDATE - indicate when window updates occur
 
 =head1 SYNOPSIS
 

@@ -48,7 +48,7 @@ sub from_data {
 
 =head2 stream_id
 
-Which stream we're updating the window for.
+Which stream we're updating the window for. Zero means that this is a connection-level update.
 
 =cut
 

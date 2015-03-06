@@ -113,7 +113,7 @@ subclass, or undef on failure.
 =cut
 
 sub parse {
-	shift;
+	my ($self) = shift;
 	my $pkt = shift;
 	# 2.2 Frames always have a common header which is 8 bytes in length
 	return undef unless length $$pkt >= $self->HEADER_LENGTH;
